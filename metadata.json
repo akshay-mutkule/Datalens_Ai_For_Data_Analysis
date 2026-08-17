@@ -1,0 +1,6 @@
+{
+  "name": "DataLens AI",
+  "description": "AI-Powered Automated Data Analysis, Cleaning, EDA, KPI and Dashboard Platform",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
