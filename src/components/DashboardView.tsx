@@ -414,14 +414,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             )}
           </div>
 
-          <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-xs">
-            <span className="text-slate-500">Need deeper statistical breakdown?</span>
-            <button
-              onClick={() => onNavigateToTab('eda')}
-              className="font-semibold text-blue-600 hover:underline"
-            >
-              Open EDA Suite →
-            </button>
+          <div className="pt-4 border-t border-slate-100 mt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+            <span className="text-slate-500">Explore advanced analytical engines:</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onNavigateToTab('ml')}
+                className="font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200 transition"
+              >
+                AutoML & What-If →
+              </button>
+              <button
+                onClick={() => onNavigateToTab('sql')}
+                className="font-semibold text-cyan-700 hover:text-cyan-800 bg-cyan-50 px-2.5 py-1 rounded-lg border border-cyan-200 transition"
+              >
+                SQL Console →
+              </button>
+              <button
+                onClick={() => onNavigateToTab('pivot')}
+                className="font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 transition"
+              >
+                Pivot Matrix →
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -13,6 +13,9 @@ import {
   ChevronDown,
   RefreshCw,
   FileText,
+  Brain,
+  Terminal,
+  Grid,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
@@ -45,6 +48,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+    { id: 'ml', label: 'Predictive & ML', icon: Brain, badge: 'AutoML' },
+    { id: 'sql', label: 'SQL Studio', icon: Terminal },
+    { id: 'pivot', label: 'Pivot Matrix', icon: Grid },
     { id: 'quality', label: 'Data Cleaning', icon: ShieldCheck, badge: dataset?.profile.duplicateRows || dataset?.profile.totalMissingValues ? 'Review' : undefined },
     { id: 'eda', label: 'Statistical EDA', icon: LineChart },
     { id: 'studio', label: 'Chart Studio', icon: PieChart },

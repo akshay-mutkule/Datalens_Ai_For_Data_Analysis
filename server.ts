@@ -13,6 +13,11 @@ import {
   generateSmartCharts,
   generateCorrelationMatrix,
   generateAutomatedInsights,
+  trainRegressionModel,
+  forecastTimeSeries,
+  runHypothesisTests,
+  executeSQLQuery,
+  computePivotTable,
 } from './src/services/dataEngine';
 import { SAMPLE_DATASETS } from './src/data/sampleDatasets';
 import { generateAIReport, askDataAnalyst } from './server/gemini';
@@ -140,13 +145,28 @@ async function startServer() {
     res.json({ samples: list });
   });
 
-  // API 4: Load Sample Dataset
-  app.post('/api/sample-datasets/:id', (req, res) => {
+  // API 4: Load Sample Dataset (handles both /api/sample/:id and /api/sample-datasets/:id)
+  const handleLoadSampleReq = (req: express.Request, res: express.Response) => {
     try {
-      const sample = SAMPLE_DATASETS.find(s => s.id === req.params.id);
+      const sampleId = req.params.id;
+      let sample = SAMPLE_DATASETS.find(s => s.id === sampleId);
       if (!sample) {
-        return res.status(404).json({ error: 'Sample dataset not found' });
+        // Allow fuzzy matching (e.g. sales_analytics -> ecommerce_sales)
+        if (sampleId.includes('sales') || sampleId.includes('ecom')) {
+          sample = SAMPLE_DATASETS.find(s => s.id === 'ecommerce_sales');
+        } else if (sampleId.includes('hr') || sampleId.includes('salary') || sampleId.includes('workforce')) {
+          sample = SAMPLE_DATASETS.find(s => s.id === 'tech_hr');
+        } else if (sampleId.includes('saas') || sampleId.includes('churn')) {
+          sample = SAMPLE_DATASETS.find(s => s.id === 'saas_churn');
+        } else if (sampleId.includes('health') || sampleId.includes('patient') || sampleId.includes('clinical')) {
+          sample = SAMPLE_DATASETS.find(s => s.id === 'healthcare_patient');
+        }
       }
+
+      if (!sample) {
+        sample = SAMPLE_DATASETS[0]; // fallback to first sample
+      }
+
       const rawRows = sample.generator();
       const dataset = processDataset(rawRows, sample.fileName, rawRows.length * sample.colsCount * 14);
       res.json({ success: true, dataset });
@@ -154,7 +174,11 @@ async function startServer() {
       console.error('Error loading sample dataset:', err);
       res.status(500).json({ error: err.message || 'Failed to load sample dataset' });
     }
-  });
+  };
+
+  app.post('/api/sample-datasets/:id', handleLoadSampleReq);
+  app.post('/api/sample/:id', handleLoadSampleReq);
+  app.get('/api/sample/:id', handleLoadSampleReq);
 
   // API 5: Get Dataset State
   app.get('/api/dataset/:id', (req, res) => {
@@ -163,6 +187,150 @@ async function startServer() {
       return res.status(404).json({ error: 'Dataset not found' });
     }
     res.json({ dataset });
+  });
+
+  // API 6: Run SQL Query
+  app.post('/api/dataset/:id/sql', (req, res) => {
+    try {
+      const dataset = datasetStore.get(req.params.id);
+      if (!dataset) return res.status(404).json({ error: 'Dataset not found' });
+
+      const { query } = req.body;
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: 'Query string is required' });
+      }
+
+      const result = executeSQLQuery(dataset.cleanedRows, query);
+      res.json({ success: result.success, result });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'SQL execution failed' });
+    }
+  });
+
+  // API 7: Train ML Regression / Classification Model
+  app.post('/api/dataset/:id/model', (req, res) => {
+    try {
+      const dataset = datasetStore.get(req.params.id);
+      if (!dataset) return res.status(404).json({ error: 'Dataset not found' });
+
+      const { targetColumn, featureColumns } = req.body;
+      if (!targetColumn) return res.status(400).json({ error: 'Target column is required' });
+
+      const features = Array.isArray(featureColumns) && featureColumns.length > 0
+        ? featureColumns
+        : dataset.profile.columns
+            .filter(c => c.dataType === 'numerical' && c.name !== targetColumn && !c.isIdentifier)
+            .map(c => c.name);
+
+      const model = trainRegressionModel(dataset.cleanedRows, targetColumn, features);
+      if (!model) return res.status(400).json({ error: 'Unable to fit model with selected parameters' });
+
+      res.json({ success: true, model });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Model training failed' });
+    }
+  });
+
+  // API 8: Time-Series Forecasting
+  app.post('/api/dataset/:id/forecast', (req, res) => {
+    try {
+      const dataset = datasetStore.get(req.params.id);
+      if (!dataset) return res.status(404).json({ error: 'Dataset not found' });
+
+      const { dateColumn, valueColumn, horizon } = req.body;
+      const dateCol = dateColumn || dataset.profile.columns.find(c => c.dataType === 'date')?.name;
+      const valCol = valueColumn || dataset.profile.columns.find(c => c.dataType === 'numerical' && !c.isIdentifier)?.name;
+
+      if (!dateCol || !valCol) {
+        return res.status(400).json({ error: 'Date column and value column are required for forecasting' });
+      }
+
+      const forecast = forecastTimeSeries(dataset.cleanedRows, dateCol, valCol, horizon || 6);
+      if (!forecast) return res.status(400).json({ error: 'Insufficient temporal data to generate forecast' });
+
+      res.json({ success: true, forecast });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Forecasting failed' });
+    }
+  });
+
+  // API 9: Run Pivot Table
+  app.post('/api/dataset/:id/pivot', (req, res) => {
+    try {
+      const dataset = datasetStore.get(req.params.id);
+      if (!dataset) return res.status(404).json({ error: 'Dataset not found' });
+
+      const { rowField, colField, valField, aggregation } = req.body;
+      const pivot = computePivotTable(dataset.cleanedRows, {
+        rowField,
+        colField,
+        valField: valField || dataset.profile.columns.find(c => c.dataType === 'numerical')?.name || '',
+        aggregation: aggregation || 'sum',
+      });
+
+      res.json({ success: true, pivot });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Pivot computation failed' });
+    }
+  });
+
+  // API 10: Run Hypothesis Tests
+  app.get('/api/dataset/:id/hypothesis-tests', (req, res) => {
+    try {
+      const dataset = datasetStore.get(req.params.id);
+      if (!dataset) return res.status(404).json({ error: 'Dataset not found' });
+
+      const tests = runHypothesisTests(dataset.cleanedRows, dataset.profile);
+      res.json({ success: true, tests });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Hypothesis testing failed' });
+    }
+  });
+
+  // API 11: Add Custom Calculated Column
+  app.post('/api/dataset/:id/add-column', (req, res) => {
+    try {
+      const dataset = datasetStore.get(req.params.id);
+      if (!dataset) return res.status(404).json({ error: 'Dataset not found' });
+
+      const { columnName, expression, formulaType } = req.body;
+      if (!columnName || !expression) {
+        return res.status(400).json({ error: 'Column name and expression are required' });
+      }
+
+      // Safe evaluation of simple math operations across row keys
+      const augmentedRows = dataset.cleanedRows.map(row => {
+        const newRow = { ...row };
+        try {
+          // Replace [Column_Name] tokens with row['Column_Name']
+          let evalStr = expression.replace(/\[([a-zA-Z0-9_]+)\]/g, (_: string, col: string) => {
+            const val = Number(row[col]);
+            return isNaN(val) ? '0' : String(val);
+          });
+          // Only allow safe math tokens
+          if (/^[\d\s+\-*/().Math.sqrt.log.abs.pow.round]+$/.test(evalStr)) {
+            // eslint-disable-next-line no-new-func
+            const computed = Function(`"use strict"; return (${evalStr})`)();
+            newRow[columnName] = Number(Number(computed).toFixed(2));
+          } else {
+            newRow[columnName] = null;
+          }
+        } catch {
+          newRow[columnName] = null;
+        }
+        return newRow;
+      });
+
+      const updatedProfile = profileDataset(augmentedRows, dataset.profile.fileName, dataset.profile.fileSizeBytes);
+      dataset.cleanedRows = augmentedRows;
+      dataset.profile = updatedProfile;
+      dataset.headers = Object.keys(augmentedRows[0] || {});
+      datasetStore.set(dataset.id, dataset);
+
+      res.json({ success: true, dataset });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to add calculated column' });
+    }
   });
 
   // API 6: Apply Customized Cleaning Pipeline

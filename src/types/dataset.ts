@@ -175,4 +175,114 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
   suggestions?: string[];
+  generatedSQL?: string;
+  generatedCode?: { language: 'python' | 'r' | 'sql'; code: string };
 }
+
+// Machine Learning & What-If Types
+export interface MLFeatureImportance {
+  feature: string;
+  importance: number; // 0 to 1
+  coefficient: number;
+  correlation: number;
+}
+
+export interface MLModelResult {
+  targetColumn: string;
+  modelType: 'linear_regression' | 'logistic_classification';
+  rSquared: number;
+  rmse: number;
+  mae: number;
+  accuracy?: number;
+  f1Score?: number;
+  featureImportance: MLFeatureImportance[];
+  coefficients: Record<string, number>;
+  intercept: number;
+  residualSummary: {
+    meanResidual: number;
+    stdResidual: number;
+  };
+  samplePredictions: {
+    actual: number;
+    predicted: number;
+    residual: number;
+  }[];
+}
+
+export interface WhatIfVariableConfig {
+  name: string;
+  min: number;
+  max: number;
+  step: number;
+  baseline: number;
+  current: number;
+  unit?: string;
+}
+
+// Time-Series Forecasting Types
+export interface ForecastPoint {
+  date: string;
+  actual?: number | null;
+  forecast?: number | null;
+  confidenceLower?: number | null;
+  confidenceUpper?: number | null;
+  isProjected: boolean;
+}
+
+export interface ForecastResult {
+  dateColumn: string;
+  valueColumn: string;
+  horizon: number;
+  growthRatePercent: number;
+  trendDirection: 'increasing' | 'decreasing' | 'stable';
+  seasonalDetected: boolean;
+  historyAndForecast: ForecastPoint[];
+  summary: {
+    historicalAverage: number;
+    forecastAverage: number;
+    projectedChangePercent: number;
+  };
+}
+
+// Hypothesis Testing Types
+export interface HypothesisTestResult {
+  testType: 'two_sample_t_test' | 'anova' | 'chi_square' | 'normality';
+  title: string;
+  nullHypothesis: string;
+  alternativeHypothesis: string;
+  pValue: number;
+  testStatisticName: string;
+  testStatisticValue: number;
+  isSignificant: boolean; // p < 0.05
+  conclusion: string;
+  details?: Record<string, any>;
+}
+
+// SQL Query Execution Types
+export interface SQLQueryResult {
+  query: string;
+  success: boolean;
+  columns: string[];
+  rows: Record<string, any>[];
+  rowCount: number;
+  executionTimeMs: number;
+  error?: string;
+}
+
+// Pivot Table Types
+export interface PivotTableConfig {
+  rowField: string;
+  colField: string;
+  valField: string;
+  aggregation: 'sum' | 'avg' | 'count' | 'min' | 'max';
+}
+
+export interface PivotTableData {
+  rows: string[];
+  cols: string[];
+  matrix: (number | null)[][];
+  rowTotals: number[];
+  colTotals: number[];
+  grandTotal: number;
+}
+

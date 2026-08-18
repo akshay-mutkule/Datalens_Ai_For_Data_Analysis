@@ -9,6 +9,9 @@ import { VisualizerView } from './components/VisualizerView';
 import { AIChatView } from './components/AIChatView';
 import { ReportView } from './components/ReportView';
 import { DataTableView } from './components/DataTableView';
+import { PredictiveMLView } from './components/PredictiveMLView';
+import { SQLStudioView } from './components/SQLStudioView';
+import { PivotTableView } from './components/PivotTableView';
 import { DatasetState, CleaningPipelineConfig } from './types/dataset';
 import { X, Upload } from 'lucide-react';
 
@@ -180,6 +183,12 @@ export function App() {
                   onNavigateToTab={(tab) => setCurrentTab(tab)}
                 />
               )}
+
+              {currentTab === 'ml' && <PredictiveMLView dataset={dataset} />}
+
+              {currentTab === 'sql' && <SQLStudioView dataset={dataset} />}
+
+              {currentTab === 'pivot' && <PivotTableView dataset={dataset} />}
 
               {currentTab === 'quality' && (
                 <DataQualityView
