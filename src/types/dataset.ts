@@ -286,3 +286,106 @@ export interface PivotTableData {
   grandTotal: number;
 }
 
+// ----------------------------------------------------
+// Advanced Machine Learning & Clustering (K-Means / PCA)
+// ----------------------------------------------------
+export interface ClusterProfile {
+  id: number;
+  name: string;
+  size: number;
+  percentage: number;
+  color: string;
+  centroid: Record<string, number>;
+  keyCharacteristics: string[];
+  summary: string;
+}
+
+export interface ClusteredPoint {
+  id: number;
+  pcaX: number;
+  pcaY: number;
+  clusterId: number;
+  clusterName: string;
+  clusterColor: string;
+  attributes: Record<string, any>;
+}
+
+export interface ClusterModelResult {
+  k: number;
+  inertia: number;
+  silhouetteScore: number;
+  featuresUsed: string[];
+  clusters: ClusterProfile[];
+  points: ClusteredPoint[];
+  optimalKSuggestion: number;
+}
+
+// ----------------------------------------------------
+// Multi-Variate Anomaly Isolation Engine
+// ----------------------------------------------------
+export interface AnomalousFieldDetail {
+  field: string;
+  observedValue: any;
+  meanValue: number;
+  zScore: number;
+  deviationDirection: 'high' | 'low';
+  impactDescription: string;
+}
+
+export interface AnomalyRecord {
+  id: number;
+  rowIndex: number;
+  anomalyScore: number; // 0 to 100
+  severity: 'critical' | 'moderate' | 'mild';
+  primaryFactor: string;
+  flaggedFields: AnomalousFieldDetail[];
+  rowData: Record<string, any>;
+  explanation: string;
+}
+
+export interface AnomalyDetectionResult {
+  totalAnalyzed: number;
+  totalAnomalies: number;
+  anomalyRatePercent: number;
+  anomalies: AnomalyRecord[];
+  topDistortedAttributes: { attribute: string; anomalyContributionCount: number }[];
+  summary: string;
+}
+
+// ----------------------------------------------------
+// Cohort & Retention Analysis
+// ----------------------------------------------------
+export interface CohortPeriodData {
+  periodIndex: number;
+  periodLabel: string;
+  activeCount: number;
+  retentionRatePercent: number;
+  totalValue: number;
+}
+
+export interface CohortRow {
+  cohortLabel: string;
+  initialSize: number;
+  periods: CohortPeriodData[];
+}
+
+export interface CohortAnalysisResult {
+  hasCohortData: boolean;
+  dateColumn: string;
+  cohortRows: CohortRow[];
+  maxPeriods: number;
+  overallRetentionCurve: { periodIndex: number; averageRetentionPercent: number }[];
+  keyCohortTakeaway: string;
+}
+
+// ----------------------------------------------------
+// Data Science Notebook & Code Generator
+// ----------------------------------------------------
+export interface DataScienceCodePackage {
+  pythonPandasEDA: string;
+  pythonScikitLearnML: string;
+  rTidyverseScript: string;
+  jupyterNotebookJson: string;
+}
+
+

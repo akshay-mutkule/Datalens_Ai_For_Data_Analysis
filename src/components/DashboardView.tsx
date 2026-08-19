@@ -414,9 +414,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             )}
           </div>
 
-          <div className="pt-4 border-t border-slate-100 mt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
-            <span className="text-slate-500">Explore advanced analytical engines:</span>
-            <div className="flex items-center gap-2">
+          <div className="pt-4 border-t border-slate-100 mt-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-2 text-xs">
+            <span className="text-slate-500 font-medium">Explore advanced analytical engines:</span>
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
                 onClick={() => onNavigateToTab('ml')}
                 className="font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200 transition"
@@ -424,16 +424,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 AutoML & What-If →
               </button>
               <button
-                onClick={() => onNavigateToTab('sql')}
+                onClick={() => onNavigateToTab('clustering')}
+                className="font-semibold text-blue-700 hover:text-blue-800 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 transition"
+              >
+                Clusters & PCA →
+              </button>
+              <button
+                onClick={() => onNavigateToTab('anomalies')}
+                className="font-semibold text-rose-700 hover:text-rose-800 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 transition"
+              >
+                Anomaly Sentinel →
+              </button>
+              <button
+                onClick={() => onNavigateToTab('cohorts')}
                 className="font-semibold text-cyan-700 hover:text-cyan-800 bg-cyan-50 px-2.5 py-1 rounded-lg border border-cyan-200 transition"
+              >
+                Cohorts →
+              </button>
+              <button
+                onClick={() => onNavigateToTab('sql')}
+                className="font-semibold text-slate-700 hover:text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 transition"
               >
                 SQL Console →
               </button>
               <button
-                onClick={() => onNavigateToTab('pivot')}
+                onClick={() => onNavigateToTab('notebook')}
                 className="font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 transition"
               >
-                Pivot Matrix →
+                Python & R Code →
               </button>
             </div>
           </div>

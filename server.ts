@@ -18,6 +18,10 @@ import {
   runHypothesisTests,
   executeSQLQuery,
   computePivotTable,
+  runKMeansClustering,
+  detectMultiVariateAnomalies,
+  computeCohortRetention,
+  generateDataScienceCodePackage,
 } from './src/services/dataEngine';
 import { SAMPLE_DATASETS } from './src/data/sampleDatasets';
 import { generateAIReport, askDataAnalyst } from './server/gemini';
@@ -330,6 +334,66 @@ async function startServer() {
       res.json({ success: true, dataset });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Failed to add calculated column' });
+    }
+  });
+
+  // API 5b: Run K-Means Clustering & PCA Projection
+  app.post('/api/dataset/:id/clustering', (req, res) => {
+    try {
+      const dataset = datasetStore.get(req.params.id);
+      if (!dataset) return res.status(404).json({ error: 'Dataset not found' });
+
+      const { featureColumns, k } = req.body;
+      const numCols = dataset.profile.columns.filter(c => c.dataType === 'numerical' && !c.isIdentifier).map(c => c.name);
+      const selectedFeatures = Array.isArray(featureColumns) && featureColumns.length > 0 ? featureColumns : numCols.slice(0, 4);
+
+      const result = runKMeansClustering(dataset.cleanedRows, selectedFeatures, Number(k) || 3);
+      if (!result) {
+        return res.status(400).json({ error: 'Insufficient numerical data for clustering' });
+      }
+
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to run clustering' });
+    }
+  });
+
+  // API 5c: Detect Multi-Variate Anomalies
+  app.get('/api/dataset/:id/anomalies', (req, res) => {
+    try {
+      const dataset = datasetStore.get(req.params.id);
+      if (!dataset) return res.status(404).json({ error: 'Dataset not found' });
+
+      const result = detectMultiVariateAnomalies(dataset.cleanedRows, dataset.profile);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to detect anomalies' });
+    }
+  });
+
+  // API 5d: Compute Cohort Retention Matrix
+  app.get('/api/dataset/:id/cohorts', (req, res) => {
+    try {
+      const dataset = datasetStore.get(req.params.id);
+      if (!dataset) return res.status(404).json({ error: 'Dataset not found' });
+
+      const result = computeCohortRetention(dataset.cleanedRows, dataset.profile);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to compute cohort matrix' });
+    }
+  });
+
+  // API 5e: Generate Data Science Code Package (Python / R / Jupyter)
+  app.get('/api/dataset/:id/notebook-code', (req, res) => {
+    try {
+      const dataset = datasetStore.get(req.params.id);
+      if (!dataset) return res.status(404).json({ error: 'Dataset not found' });
+
+      const codePackage = generateDataScienceCodePackage(dataset);
+      res.json(codePackage);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to generate code package' });
     }
   });
 

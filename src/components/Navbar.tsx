@@ -16,6 +16,10 @@ import {
   Brain,
   Terminal,
   Grid,
+  Users,
+  ShieldAlert,
+  Calendar,
+  Code,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
@@ -49,11 +53,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'ml', label: 'Predictive & ML', icon: Brain, badge: 'AutoML' },
+    { id: 'clustering', label: 'Clusters & PCA', icon: Users, badge: 'K-Means' },
+    { id: 'anomalies', label: 'Anomaly Sentinel', icon: ShieldAlert },
+    { id: 'cohorts', label: 'Cohort Retention', icon: Calendar },
     { id: 'sql', label: 'SQL Studio', icon: Terminal },
     { id: 'pivot', label: 'Pivot Matrix', icon: Grid },
     { id: 'quality', label: 'Data Cleaning', icon: ShieldCheck, badge: dataset?.profile.duplicateRows || dataset?.profile.totalMissingValues ? 'Review' : undefined },
     { id: 'eda', label: 'Statistical EDA', icon: LineChart },
     { id: 'studio', label: 'Chart Studio', icon: PieChart },
+    { id: 'notebook', label: 'Python & R Code', icon: Code },
     { id: 'chat', label: 'AI Analyst', icon: Sparkles, highlight: true },
     { id: 'report', label: 'Executive Report', icon: FileText },
     { id: 'data', label: 'Data Explorer', icon: FileSpreadsheet },

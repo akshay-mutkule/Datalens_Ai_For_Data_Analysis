@@ -12,6 +12,10 @@ import { DataTableView } from './components/DataTableView';
 import { PredictiveMLView } from './components/PredictiveMLView';
 import { SQLStudioView } from './components/SQLStudioView';
 import { PivotTableView } from './components/PivotTableView';
+import { ClusteringSegmentationView } from './components/ClusteringSegmentationView';
+import { AnomalyDetectionView } from './components/AnomalyDetectionView';
+import { CohortAnalysisView } from './components/CohortAnalysisView';
+import { CodeNotebookStudioView } from './components/CodeNotebookStudioView';
 import { DatasetState, CleaningPipelineConfig } from './types/dataset';
 import { X, Upload } from 'lucide-react';
 
@@ -186,9 +190,17 @@ export function App() {
 
               {currentTab === 'ml' && <PredictiveMLView dataset={dataset} />}
 
+              {currentTab === 'clustering' && <ClusteringSegmentationView dataset={dataset} />}
+
+              {currentTab === 'anomalies' && <AnomalyDetectionView dataset={dataset} />}
+
+              {currentTab === 'cohorts' && <CohortAnalysisView dataset={dataset} />}
+
               {currentTab === 'sql' && <SQLStudioView dataset={dataset} />}
 
               {currentTab === 'pivot' && <PivotTableView dataset={dataset} />}
+
+              {currentTab === 'notebook' && <CodeNotebookStudioView dataset={dataset} />}
 
               {currentTab === 'quality' && (
                 <DataQualityView
