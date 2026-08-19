@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   Calendar,
   Code,
+  Zap,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
@@ -68,38 +69,38 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-40 shadow-sm">
+    <header className="bg-slate-950/90 backdrop-blur-xl border-b border-slate-800/80 text-white sticky top-0 z-50 shadow-lg shadow-black/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 gap-4">
           {/* Logo & Brand */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-md shadow-blue-500/20">
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/20">
               <Database className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-blue-200">
+                <span className="font-black text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-blue-300">
                   DataLens AI
                 </span>
-                <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  v2.5 Pro
+                <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                  Pro Engine
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-normal hidden sm:block">
-                Automated Profiling, Cleaning & Analytics
+              <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
+                Autonomous Business Intelligence & Analytics
               </p>
             </div>
           </div>
 
-          {/* Active Dataset Status & Sample Datasets Picker */}
-          <div className="flex items-center gap-3">
+          {/* Active Dataset Status & Controls */}
+          <div className="flex items-center gap-2.5">
             {dataset ? (
-              <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/80 px-3 py-1.5 rounded-lg text-xs">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="font-medium text-slate-200 truncate max-w-[140px] sm:max-w-[200px]" title={dataset.profile.fileName}>
+              <div className="flex items-center gap-2 bg-slate-900 border border-slate-700/80 px-3.5 py-1.5 rounded-xl text-xs shadow-inner">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ring-4 ring-emerald-500/20" />
+                <span className="font-bold text-slate-200 truncate max-w-[120px] sm:max-w-[180px]" title={dataset.profile.fileName}>
                   {dataset.profile.fileName}
                 </span>
-                <span className="text-slate-400">
+                <span className="text-slate-400 font-mono text-[11px]">
                   ({dataset.profile.totalRows.toLocaleString()} rows)
                 </span>
               </div>
@@ -109,7 +110,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="relative">
               <button
                 onClick={() => setShowSampleMenu(!showSampleMenu)}
-                className="flex items-center gap-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg transition"
+                className="flex items-center gap-1.5 text-xs font-bold bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3.5 py-1.5 rounded-xl transition shadow-2xs"
               >
                 <Layers className="w-3.5 h-3.5 text-indigo-400" />
                 <span className="hidden sm:inline">Samples</span>
@@ -117,8 +118,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               {showSampleMenu && (
-                <div className="absolute right-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                  <div className="px-3 py-1 text-[11px] font-semibold uppercase text-slate-400 tracking-wider">
+                <div className="absolute right-0 mt-2 w-72 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2 backdrop-blur-xl">
+                  <div className="px-3.5 py-1.5 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
                     Instant Demo Datasets
                   </div>
                   {SAMPLE_DATASETS.map((sample) => (
@@ -128,26 +129,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                         onLoadSample(sample.id);
                         setShowSampleMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 hover:bg-slate-700/60 text-xs flex flex-col gap-0.5 transition"
+                      className="w-full text-left px-3.5 py-2.5 hover:bg-slate-800 text-xs flex flex-col gap-0.5 transition"
                     >
-                      <div className="font-medium text-slate-100 flex items-center justify-between">
+                      <div className="font-bold text-slate-100 flex items-center justify-between">
                         <span>{sample.name}</span>
-                        <span className="text-[10px] text-slate-400">{sample.rowsCount} rows</span>
+                        <span className="text-[10px] font-mono text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">{sample.rowsCount} rows</span>
                       </div>
-                      <span className="text-[11px] text-slate-400 truncate">{sample.category}</span>
+                      <div className="text-[11px] text-slate-400 line-clamp-1">{sample.description}</div>
                     </button>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Upload Button */}
+            {/* Re-Upload or New Dataset Button */}
             <button
               onClick={onUploadClick}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition shadow-sm"
+              disabled={isProcessing}
+              className="flex items-center gap-1.5 text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-3.5 py-1.5 rounded-xl shadow-md shadow-blue-500/20 transition disabled:opacity-50"
             >
               <Upload className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Upload New</span>
+              <span className="hidden sm:inline">{dataset ? 'Upload New' : 'Upload Data'}</span>
             </button>
 
             {/* Export Dropdown */}
@@ -155,31 +157,31 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="relative">
                 <button
                   onClick={() => setShowExportMenu(!showExportMenu)}
-                  className="flex items-center gap-1.5 text-xs font-medium bg-emerald-700/40 hover:bg-emerald-700/60 text-emerald-300 border border-emerald-600/40 px-3 py-1.5 rounded-lg transition"
+                  className="flex items-center gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-xl shadow-md shadow-emerald-600/20 transition"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Export</span>
-                  <ChevronDown className="w-3 h-3" />
+                  <ChevronDown className="w-3 h-3 text-emerald-200" />
                 </button>
 
                 {showExportMenu && (
-                  <div className="absolute right-0 mt-2 w-52 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 z-50">
+                  <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2 backdrop-blur-xl divide-y divide-slate-800">
                     <button
                       onClick={() => {
                         onDownloadPDF();
                         setShowExportMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-slate-700 flex items-center gap-2 text-slate-200"
+                      className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-slate-800 flex items-center gap-2.5 text-slate-200 font-medium transition"
                     >
-                      <FileText className="w-4 h-4 text-red-400" />
-                      <span>PDF Analytical Report</span>
+                      <FileText className="w-4 h-4 text-rose-400" />
+                      <span>Executive PDF Report</span>
                     </button>
                     <button
                       onClick={() => {
                         onDownloadExcel();
                         setShowExportMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-slate-700 flex items-center gap-2 text-slate-200"
+                      className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-slate-800 flex items-center gap-2.5 text-slate-200 font-medium transition"
                     >
                       <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
                       <span>Excel Workbook (.xlsx)</span>
@@ -189,7 +191,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         onDownloadCSV();
                         setShowExportMenu(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-slate-700 flex items-center gap-2 text-slate-200"
+                      className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-slate-800 flex items-center gap-2.5 text-slate-200 font-medium transition"
                     >
                       <Download className="w-4 h-4 text-blue-400" />
                       <span>Cleaned Dataset (.csv)</span>
@@ -203,7 +205,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Navigation Tabs Bar */}
         {dataset && (
-          <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto py-2 border-t border-slate-800/80 scrollbar-none">
+          <div className="flex items-center space-x-1.5 overflow-x-auto py-2.5 border-t border-slate-800/80 scrollbar-none">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = currentTab === tab.id;
@@ -211,18 +213,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={tab.id}
                   onClick={() => setCurrentTab(tab.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
                     isActive
-                      ? 'bg-blue-600 text-white shadow-sm'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 ring-1 ring-blue-400/40'
                       : tab.highlight
-                      ? 'bg-indigo-950/60 text-indigo-300 hover:bg-indigo-900/80 border border-indigo-500/30'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                      ? 'bg-indigo-950/80 text-indigo-300 hover:bg-indigo-900 border border-indigo-500/30'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800/80'
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : tab.highlight ? 'text-indigo-400' : 'text-slate-400'}`} />
                   <span>{tab.label}</span>
                   {tab.badge && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                    }`}>
                       {tab.badge}
                     </span>
                   )}

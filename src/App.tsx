@@ -147,7 +147,10 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans antialiased">
+    <div className="min-h-screen bg-slate-100/60 text-slate-900 flex flex-col font-sans antialiased relative selection:bg-blue-600 selection:text-white">
+      {/* Subtle Ambient Radial Lighting */}
+      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50/60 via-slate-50/20 to-transparent -z-10" />
+
       {/* Top Application Navbar */}
       <Navbar
         currentTab={currentTab}

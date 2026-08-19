@@ -11,6 +11,10 @@ import {
   Shield,
   BarChart,
   BrainCircuit,
+  Database,
+  TrendingUp,
+  Cpu,
+  Zap,
 } from 'lucide-react';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
 
@@ -60,7 +64,7 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
   const validateAndUpload = (file: File) => {
     const validExtensions = ['.csv', '.xlsx', '.xls', '.txt'];
     const fileName = file.name.toLowerCase();
-    const isValid = validExtensions.some(ext => fileName.endsWith(ext));
+    const isValid = validExtensions.some((ext) => fileName.endsWith(ext));
     if (!isValid) {
       alert('Please upload a valid CSV or Excel file (.csv, .xlsx, .xls)');
       return;
@@ -69,58 +73,61 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
   };
 
   const steps = [
-    'Parsing dataset & headers',
-    'Detecting statistical & semantic data types',
-    'Auditing data quality & missing values',
-    'Generating data cleaning remediation pipeline',
-    'Calculating descriptive exploratory statistics (EDA)',
-    'Computing dataset-aware executive KPIs',
-    'Synthesizing smart charts & correlation matrices',
-    'Formulating automated business insights',
+    'Parsing dataset headers & schema integrity',
+    'Detecting statistical & semantic column types',
+    'Auditing missing cells & duplicate rows',
+    'Formulating optimal data cleaning pipeline',
+    'Computing exploratory summary statistics (EDA)',
+    'Synthesizing dataset-aware executive KPIs',
+    'Building correlation matrices & smart visualizations',
+    'Generating automated natural language insights',
   ];
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-10">
-      {/* Header Banner */}
-      <div className="text-center space-y-3 max-w-3xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold">
-          <Sparkles className="w-3.5 h-3.5" />
-          Autonomous Business Intelligence & Analytics Engine
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-12">
+      {/* Hero Header Section */}
+      <div className="text-center space-y-4 max-w-3xl mx-auto">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 text-blue-700 text-xs font-bold shadow-2xs">
+          <Sparkles className="w-4 h-4 text-blue-600 animate-pulse" />
+          <span>Autonomous AI Data Intelligence & Analytics Platform</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-          Upload any dataset. Get instant analysis, cleaning & dashboards.
+        <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+          Drop any dataset. <br />
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
+            Get instant KPIs, charts & AutoML.
+          </span>
         </h1>
-        <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-          Drag & drop your CSV or Excel file. DataLens AI automatically profiles schemas, cleans anomalies, calculates KPIs, constructs interactive visualizations, and generates executive reports.
+        <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto">
+          Upload CSV or Excel files. DataLens AI automatically executes statistical profiling, missing data remediation, correlation discovery, AutoML forecasting, and executive reporting in seconds.
         </p>
       </div>
 
-      {/* Upload Zone Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 sm:p-8">
+      {/* Main Upload Dropzone Container */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden p-6 sm:p-10 relative">
         {isProcessing ? (
-          <div className="py-12 px-4 max-w-md mx-auto text-center space-y-6">
-            <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
+          <div className="py-12 px-4 max-w-lg mx-auto text-center space-y-6">
+            <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
               <div className="absolute inset-0 rounded-full border-4 border-blue-100 animate-ping opacity-75" />
-              <div className="w-16 h-16 rounded-full border-4 border-blue-600 border-t-transparent animate-spin flex items-center justify-center">
-                <BrainCircuit className="w-6 h-6 text-blue-600 animate-pulse" />
+              <div className="w-20 h-20 rounded-full border-4 border-blue-600 border-t-transparent animate-spin flex items-center justify-center">
+                <BrainCircuit className="w-8 h-8 text-blue-600 animate-pulse" />
               </div>
             </div>
 
             <div>
-              <h3 className="text-lg font-bold text-slate-900">
-                Analyzing & Modeling Dataset...
+              <h3 className="text-xl font-extrabold text-slate-900">
+                Profiling & Modeling Dataset...
               </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                {processingStep || 'Running autonomous pipeline algorithms'}
+              <p className="text-xs text-blue-600 font-semibold mt-1 animate-pulse">
+                {processingStep || 'Running autonomous analytical engine'}
               </p>
             </div>
 
             {/* Stepper Progress */}
-            <div className="space-y-2 text-left bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div className="space-y-2.5 text-left bg-slate-50/90 p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
               {steps.map((step, idx) => (
-                <div key={idx} className="flex items-center gap-2.5 text-xs text-slate-600">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                  <span className="truncate">{step}</span>
+                <div key={idx} className="flex items-center gap-3 text-xs text-slate-700">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span className="font-medium truncate">{step}</span>
                 </div>
               ))}
             </div>
@@ -131,10 +138,10 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center cursor-pointer transition-all duration-200 ${
+            className={`border-2 border-dashed rounded-2xl p-8 sm:p-14 text-center cursor-pointer transition-all duration-300 relative group overflow-hidden ${
               isDragOver
-                ? 'border-blue-500 bg-blue-50/50 scale-[1.005]'
-                : 'border-slate-300 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/20'
+                ? 'border-blue-500 bg-blue-50/60 scale-[1.01] ring-4 ring-blue-500/10'
+                : 'border-slate-300 hover:border-blue-500 bg-slate-50/40 hover:bg-blue-50/20'
             }`}
           >
             <input
@@ -145,54 +152,54 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
               onChange={handleFileChange}
             />
 
-            <div className="w-16 h-16 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
-              <Upload className="w-8 h-8" />
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-transform duration-300">
+              <Upload className="w-9 h-9" />
             </div>
 
-            <h3 className="text-base sm:text-lg font-bold text-slate-900">
-              Drop your CSV or Excel file here
+            <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
+              Drag & drop your CSV or Excel dataset here
             </h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              Supports CSV, XLSX, and XLS files up to 50MB. All data stays secure and private.
+            <p className="text-xs sm:text-sm text-slate-500 mt-1.5 max-w-md mx-auto">
+              Direct upload for CSV, XLSX, and XLS up to 50MB. Instant automated parsing with zero config required.
             </p>
 
-            <div className="mt-6 flex items-center justify-center gap-2">
+            <div className="mt-6 flex items-center justify-center gap-3">
               <button
                 type="button"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition"
+                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all group-hover:shadow-lg"
               >
-                Browse Files
+                Browse Local Files
               </button>
             </div>
 
             {/* Supported format badges */}
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-400 font-medium">
-              <span className="px-2 py-0.5 rounded bg-slate-200/70 text-slate-700">.CSV</span>
-              <span className="px-2 py-0.5 rounded bg-slate-200/70 text-slate-700">.XLSX</span>
-              <span className="px-2 py-0.5 rounded bg-slate-200/70 text-slate-700">.XLS</span>
-              <span>• Auto-profiling & Cleaning</span>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400 font-semibold">
+              <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 shadow-2xs">.CSV</span>
+              <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 shadow-2xs">.XLSX</span>
+              <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 shadow-2xs">.XLS</span>
+              <span className="text-slate-400">• High-Throughput In-Memory Parser</span>
             </div>
           </div>
         )}
 
         {error && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs text-red-700">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+          <div className="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-3 text-xs text-rose-800 font-medium">
+            <AlertCircle className="w-5 h-5 shrink-0 text-rose-600" />
             <span>{error}</span>
           </div>
         )}
       </div>
 
       {/* Demo Sample Datasets Section */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2.5">
               <Layers className="w-5 h-5 text-indigo-600" />
-              Or Test Instantly with Sample Datasets
+              <span>Or Explore Instant Pre-Loaded Demo Datasets</span>
             </h2>
-            <p className="text-xs text-slate-500">
-              1-click pre-configured enterprise datasets for immediate exploration
+            <p className="text-xs text-slate-500 mt-0.5">
+              1-click enterprise datasets with real-world schemas, messy data flags, and domain KPIs
             </p>
           </div>
         </div>
@@ -202,18 +209,18 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
             <div
               key={sample.id}
               onClick={() => onSelectSample(sample.id)}
-              className="group bg-white rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-md transition p-4 cursor-pointer flex flex-col justify-between"
+              className="group bg-white rounded-2xl border border-slate-200/90 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 p-5 cursor-pointer flex flex-col justify-between relative overflow-hidden"
             >
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                  <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 uppercase tracking-wider">
                     {sample.category}
                   </span>
-                  <span className="text-[11px] font-medium text-slate-400">
+                  <span className="text-[11px] font-bold text-slate-400 font-mono">
                     {sample.rowsCount} rows
                   </span>
                 </div>
-                <h3 className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition">
+                <h3 className="font-extrabold text-sm text-slate-900 group-hover:text-blue-600 transition">
                   {sample.name}
                 </h3>
                 <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
@@ -221,9 +228,9 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
                 </p>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600 group-hover:translate-x-0.5 transition">
-                <span>Load Dataset</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+              <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 group-hover:text-blue-700">
+                <span>Load Live Demo</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
           ))}
@@ -231,41 +238,35 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({
       </div>
 
       {/* Feature Highlights Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4 border-t border-slate-200">
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-slate-200">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2">
+          <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
             <Shield className="w-4 h-4" />
           </div>
-          <div>
-            <h4 className="text-xs font-bold text-slate-900">Automated Data Cleaning</h4>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              Identifies missing values, duplicate rows, invalid types, and statistical outliers with user approvals.
-            </p>
-          </div>
+          <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">Autonomous Data Hygiene</h4>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Identifies missing cells, duplicate rows, invalid types, and statistical outliers with instant remediation.
+          </p>
         </div>
 
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2">
+          <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
             <BarChart className="w-4 h-4" />
           </div>
-          <div>
-            <h4 className="text-xs font-bold text-slate-900">Dataset-Aware KPI & Visuals</h4>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              Decides optimal charts (Time Series, Category Bars, Scatter, Donut) based on dimensions and data types.
-            </p>
-          </div>
+          <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">Predictive ML & What-If</h4>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Auto-fits regression and classification models, calculates feature importance, and runs live interactive parameter simulations.
+          </p>
         </div>
 
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2">
+          <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
             <BrainCircuit className="w-4 h-4" />
           </div>
-          <div>
-            <h4 className="text-xs font-bold text-slate-900">AI Data Analyst & Reports</h4>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              Ask deep questions and export executive PDF reports and multi-sheet Excel workbooks in seconds.
-            </p>
-          </div>
+          <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">AI Executive Intelligence</h4>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Conversational natural language assistant that writes custom SQL, generates Python scripts, and exports executive PDF reports.
+          </p>
         </div>
       </div>
     </div>
