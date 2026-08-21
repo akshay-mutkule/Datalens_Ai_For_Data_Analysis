@@ -15,6 +15,10 @@ import {
   Calendar,
   CheckCircle2,
   AlertTriangle,
+  BookmarkPlus,
+  Trash2,
+  Compass,
+  Zap,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -36,7 +40,6 @@ import {
   DatasetState,
   MLModelResult,
   ForecastResult,
-  WhatIfVariableConfig,
 } from '../types/dataset';
 import {
   trainRegressionModel,
@@ -50,6 +53,15 @@ interface PredictiveMLViewProps {
   dataset: DatasetState;
 }
 
+interface SavedScenario {
+  id: string;
+  name: string;
+  predictedValue: number;
+  deltaFromBaseline: number;
+  sliderValues: Record<string, number>;
+  createdAt: string;
+}
+
 export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) => {
   const numCols = useMemo(
     () => dataset.profile.columns.filter((c) => c.dataType === 'numerical' && !c.isIdentifier),
@@ -61,11 +73,14 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
   );
 
   // Target Variable & Model State
-  const defaultTarget = numCols.find((c) =>
-    ['profit', 'revenue', 'sales', 'salary', 'mrr', 'treatment_cost', 'price'].includes(
-      c.name.toLowerCase()
-    )
-  )?.name || numCols[0]?.name || '';
+  const defaultTarget =
+    numCols.find((c) =>
+      ['profit', 'revenue', 'sales', 'salary', 'mrr', 'treatment_cost', 'price'].includes(
+        c.name.toLowerCase()
+      )
+    )?.name ||
+    numCols[0]?.name ||
+    '';
 
   const [targetCol, setTargetCol] = useState<string>(defaultTarget);
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
@@ -74,6 +89,21 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
   // What-If Sliders State
   const [sliderValues, setSliderValues] = useState<Record<string, number>>({});
 
+  // Saved Scenarios for Multi-Scenario Comparison
+  const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([]);
+  const [scenarioNameInput, setScenarioNameInput] = useState('');
+
+  // Goal Seek State
+  const [goalSeekTargetValue, setGoalSeekTargetValue] = useState<number>(100000);
+  const [goalSeekLeverCol, setGoalSeekLeverCol] = useState<string>('');
+  const [goalSeekResult, setGoalSeekResult] = useState<{
+    requiredValue: number;
+    isFeasible: boolean;
+    minHistorical: number;
+    maxHistorical: number;
+    leverName: string;
+  } | null>(null);
+
   // Forecasting State
   const [forecastDateCol, setForecastDateCol] = useState<string>(dateCols[0]?.name || '');
   const [forecastValCol, setForecastValCol] = useState<string>(defaultTarget);
@@ -81,7 +111,7 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
   const [forecastResult, setForecastResult] = useState<ForecastResult | null>(null);
 
   // Active Sub-Tab
-  const [activeTab, setActiveTab] = useState<'simulator' | 'automl' | 'forecasting'>('simulator');
+  const [activeTab, setActiveTab] = useState<'simulator' | 'goalseek' | 'automl' | 'forecasting'>('simulator');
 
   // Initialize features and model when target changes
   useEffect(() => {
@@ -92,6 +122,10 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
     const trained = trainRegressionModel(dataset.cleanedRows, targetCol, availableFeatures);
     setModel(trained);
 
+    if (availableFeatures.length > 0 && !goalSeekLeverCol) {
+      setGoalSeekLeverCol(availableFeatures[0]);
+    }
+
     // Initialize slider values to means
     if (trained) {
       const initialSliders: Record<string, number> = {};
@@ -100,6 +134,11 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
         initialSliders[feat] = colProfile?.stats?.mean || 0;
       }
       setSliderValues(initialSliders);
+
+      const targetProf = numCols.find((c) => c.name === targetCol);
+      if (targetProf?.stats?.mean) {
+        setGoalSeekTargetValue(Number((targetProf.stats.mean * 1.25).toFixed(0)));
+      }
     }
   }, [targetCol, dataset.cleanedRows, numCols]);
 
@@ -138,46 +177,131 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
 
   // Target Baseline Mean
   const targetBaselineMean = useMemo(() => {
-    const col = numCols.find((c) => c.name === targetCol);
-    return col?.stats?.mean || 0;
-  }, [targetCol, numCols]);
+    const prof = numCols.find((c) => c.name === targetCol);
+    return prof?.stats?.mean || 0;
+  }, [numCols, targetCol]);
 
+  // Delta calculation
   const deltaPercent = useMemo(() => {
     if (!whatIfPrediction || targetBaselineMean === 0) return 0;
-    return ((whatIfPrediction.predictedValue - targetBaselineMean) / targetBaselineMean) * 100;
+    return (
+      ((whatIfPrediction.predictedValue - targetBaselineMean) / Math.abs(targetBaselineMean)) * 100
+    );
   }, [whatIfPrediction, targetBaselineMean]);
 
-  const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+  // Reset Sliders
+  const handleResetSliders = () => {
+    const initialSliders: Record<string, number> = {};
+    for (const feat of selectedFeatures) {
+      const colProfile = numCols.find((c) => c.name === feat);
+      initialSliders[feat] = colProfile?.stats?.mean || 0;
+    }
+    setSliderValues(initialSliders);
+  };
+
+  // Save Scenario Snapshot
+  const handleSaveScenario = () => {
+    if (!whatIfPrediction) return;
+    const name = scenarioNameInput.trim() || `Scenario ${savedScenarios.length + 1}`;
+    const newScenario: SavedScenario = {
+      id: 'scen_' + Date.now(),
+      name,
+      predictedValue: whatIfPrediction.predictedValue,
+      deltaFromBaseline: deltaPercent,
+      sliderValues: { ...sliderValues },
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setSavedScenarios((prev) => [...prev, newScenario]);
+    setScenarioNameInput('');
+  };
+
+  const handleDeleteScenario = (id: string) => {
+    setSavedScenarios((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const handleApplyScenario = (scenario: SavedScenario) => {
+    setSliderValues({ ...scenario.sliderValues });
+  };
+
+  // Goal Seek Calculation
+  const handleRunGoalSeek = () => {
+    if (!model || !goalSeekLeverCol) return;
+    const leverCoeff = model.coefficients[goalSeekLeverCol];
+    if (!leverCoeff || leverCoeff === 0) {
+      return;
+    }
+
+    let otherTermsSum = model.intercept;
+    for (const [feat, coeff] of Object.entries(model.coefficients)) {
+      if (feat !== goalSeekLeverCol) {
+        const val = sliderValues[feat] || 0;
+        otherTermsSum += coeff * val;
+      }
+    }
+
+    const requiredVal = (goalSeekTargetValue - otherTermsSum) / leverCoeff;
+    const leverProf = numCols.find((c) => c.name === goalSeekLeverCol);
+    const minVal = leverProf?.stats?.min || 0;
+    const maxVal = leverProf?.stats?.max || 100000;
+
+    const feasible = requiredVal >= minVal * 0.7 && requiredVal <= maxVal * 1.5;
+
+    setGoalSeekResult({
+      requiredValue: Number(requiredVal.toFixed(2)),
+      isFeasible: feasible,
+      minHistorical: minVal,
+      maxHistorical: maxVal,
+      leverName: goalSeekLeverCol,
+    });
+  };
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Mode Toggle */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-              <Brain className="w-6 h-6" />
+      {/* Top Configuration & Sub-Tab Bar */}
+      <div className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-500/20">
+            <Brain className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-extrabold text-slate-900">
+                Predictive AI, What-If Simulation & Goal Seek
+              </h2>
+              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200/80">
+                AutoML Engine
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-slate-800">Predictive & Machine Learning Studio</h2>
-                <span className="text-xs bg-indigo-50 text-indigo-700 font-semibold px-2.5 py-0.5 rounded-full border border-indigo-200">
-                  AutoML Engine
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Simulate what-if scenarios, inspect feature importance, and project future trends with statistical confidence intervals.
-              </p>
-            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Multivariate OLS regressions, inverse goal optimization, and time-series projections
+            </p>
+          </div>
+        </div>
+
+        {/* Target Variable Selector & Sub-Tabs */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-extrabold text-slate-700">Target Outcome:</span>
+            <select
+              value={targetCol}
+              onChange={(e) => setTargetCol(e.target.value)}
+              className="text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500 transition shadow-2xs"
+            >
+              {numCols.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* Sub-Navigation Tabs */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl">
+          <div className="flex items-center bg-slate-100 p-1 rounded-2xl gap-1 border border-slate-200/60">
             <button
               onClick={() => setActiveTab('simulator')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 activeTab === 'simulator'
-                  ? 'bg-white text-blue-600 shadow-xs'
+                  ? 'bg-white text-indigo-600 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -185,132 +309,109 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
               <span>What-If Simulator</span>
             </button>
             <button
+              onClick={() => {
+                setActiveTab('goalseek');
+                handleRunGoalSeek();
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                activeTab === 'goalseek'
+                  ? 'bg-white text-indigo-600 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Target className="w-3.5 h-3.5" />
+              <span>Goal Seek</span>
+            </button>
+            <button
               onClick={() => setActiveTab('automl')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 activeTab === 'automl'
-                  ? 'bg-white text-blue-600 shadow-xs'
+                  ? 'bg-white text-indigo-600 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <BarChart2 className="w-3.5 h-3.5" />
-              <span>Model & Feature Weights</span>
+              <span>Model Diagnostics</span>
             </button>
             <button
               onClick={() => setActiveTab('forecasting')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 activeTab === 'forecasting'
-                  ? 'bg-white text-blue-600 shadow-xs'
+                  ? 'bg-white text-indigo-600 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>Time-Series Forecasting</span>
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Time Forecasting</span>
             </button>
           </div>
         </div>
-
-        {/* Global Target Variable Selector */}
-        {activeTab !== 'forecasting' && (
-          <div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-indigo-600" />
-              <span className="text-xs font-semibold text-slate-700">Target Outcome (Y):</span>
-              <select
-                value={targetCol}
-                onChange={(e) => setTargetCol(e.target.value)}
-                className="text-xs font-medium bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-800"
-              >
-                {numCols.map((col) => (
-                  <option key={col.name} value={col.name}>
-                    {col.name} ({col.inferredType})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {model && (
-              <div className="flex items-center gap-4 text-xs text-slate-600">
-                <span className="flex items-center gap-1">
-                  <span className="font-semibold text-slate-700">Model Fit (R²):</span>
-                  <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                    {(model.rSquared * 100).toFixed(1)}%
-                  </span>
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="font-semibold text-slate-700">Root Mean Sq Error:</span>
-                  <span className="font-mono text-slate-800">{model.rmse}</span>
-                </span>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* -------------------------------------------------- */}
-      {/* 1. WHAT-IF SCENARIO SIMULATOR */}
-      {/* -------------------------------------------------- */}
-      {activeTab === 'simulator' && model && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Panel: Variable Sliders */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+      {/* ---------------------------------------------------- */}
+      {/* SUB-TAB 1: WHAT-IF SIMULATOR */}
+      {/* ---------------------------------------------------- */}
+      {activeTab === 'simulator' && model && whatIfPrediction && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column: Interactive Feature Sliders */}
+          <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-blue-600" />
-                <h3 className="font-bold text-sm text-slate-800">Scenario Parameter Controls</h3>
+              <div>
+                <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-indigo-600" />
+                  Independent Feature Levers
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Adjust parameter values to simulate real-time projected outcomes
+                </p>
               </div>
               <button
-                onClick={() => {
-                  const initialSliders: Record<string, number> = {};
-                  for (const feat of selectedFeatures) {
-                    const colProfile = numCols.find((c) => c.name === feat);
-                    initialSliders[feat] = colProfile?.stats?.mean || 0;
-                  }
-                  setSliderValues(initialSliders);
-                }}
-                className="text-xs font-semibold text-slate-500 hover:text-blue-600 flex items-center gap-1 transition"
+                onClick={handleResetSliders}
+                className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-200 flex items-center gap-1.5 transition"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                Reset to Averages
+                <span>Reset to Means</span>
               </button>
             </div>
 
-            <div className="space-y-4">
+            {/* Sliders List */}
+            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
               {selectedFeatures.map((feat) => {
-                const colProfile = numCols.find((c) => c.name === feat);
-                const min = colProfile?.stats?.min || 0;
-                const max = colProfile?.stats?.max || 100;
-                const mean = colProfile?.stats?.mean || 50;
-                const currentVal = sliderValues[feat] !== undefined ? sliderValues[feat] : mean;
-                const step = (max - min) / 100 || 1;
-                const coeff = model.coefficients[feat] || 0;
+                const prof = numCols.find((c) => c.name === feat);
+                const min = prof?.stats?.min ?? 0;
+                const max = prof?.stats?.max ?? 100;
+                const currentVal = sliderValues[feat] ?? prof?.stats?.mean ?? 0;
+                const coeff = model.coefficients[feat] ?? 0;
 
                 return (
-                  <div key={feat} className="bg-slate-50/80 rounded-xl p-4 border border-slate-200/80 space-y-2">
+                  <div
+                    key={feat}
+                    className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-2"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-800">{feat}</span>
+                        <span className="font-extrabold text-xs text-slate-800">{feat}</span>
                         <span
-                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
                             coeff >= 0
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-rose-100 text-rose-800'
                           }`}
                         >
-                          {coeff >= 0 ? `+${coeff} per unit` : `${coeff} per unit`}
+                          {coeff >= 0 ? '+' : ''}
+                          {coeff.toFixed(3)}x Impact
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono font-bold text-slate-900 bg-white px-2 py-1 rounded border border-slate-200">
-                          {formatNumber(currentVal, 2)}
-                        </span>
-                      </div>
+                      <span className="font-mono font-extrabold text-xs text-indigo-600 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
+                        {formatNumber(currentVal, 2)}
+                      </span>
                     </div>
 
                     <input
                       type="range"
                       min={min}
                       max={max}
-                      step={step}
+                      step={(max - min) / 100 || 1}
                       value={currentVal}
                       onChange={(e) =>
                         setSliderValues((prev) => ({
@@ -318,48 +419,50 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
                           [feat]: Number(e.target.value),
                         }))
                       }
-                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                     />
 
                     <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                      <span>Min: {formatNumber(min)}</span>
-                      <span>Mean: {formatNumber(mean)}</span>
-                      <span>Max: {formatNumber(max)}</span>
+                      <span>Min: {formatNumber(min, 1)}</span>
+                      <span>Max: {formatNumber(max, 1)}</span>
                     </div>
                   </div>
                 );
               })}
             </div>
+
+            {/* Save Snapshot Controls */}
+            <div className="pt-4 border-t border-slate-100 flex items-center gap-2">
+              <input
+                type="text"
+                value={scenarioNameInput}
+                onChange={(e) => setScenarioNameInput(e.target.value)}
+                placeholder="Name this scenario (e.g. +15% Marketing, Discount Cut)..."
+                className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500"
+              />
+              <button
+                onClick={handleSaveScenario}
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-2xs shrink-0"
+              >
+                <BookmarkPlus className="w-3.5 h-3.5" />
+                <span>Save Scenario</span>
+              </button>
+            </div>
           </div>
 
-          {/* Right Panel: Live Prediction Result Card */}
-          <div className="space-y-6">
-            <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 text-white rounded-2xl p-6 shadow-md relative overflow-hidden space-y-4">
+          {/* Right Column: Live Output & Comparative Scenarios */}
+          <div className="lg:col-span-5 space-y-6">
+            {/* Live Projected Outcome Card */}
+            <div className="bg-gradient-to-tr from-slate-900 via-indigo-950 to-blue-950 text-white rounded-3xl p-6 shadow-md border border-slate-800 space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs uppercase tracking-wider font-semibold text-indigo-300">
-                  Predicted Simulation
+                <span className="text-xs font-bold uppercase tracking-wider text-indigo-300">
+                  Live Simulated Outcome
                 </span>
-                <span className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">
-                  90% Confidence
-                </span>
-              </div>
-
-              <div>
-                <p className="text-xs text-slate-300 mb-1">Estimated {targetCol}</p>
-                <div className="text-3xl font-extrabold tracking-tight">
-                  {formatNumber(whatIfPrediction?.predictedValue || 0, 2)}
-                </div>
-              </div>
-
-              {/* Delta comparison against baseline */}
-              <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] text-slate-300 block">Baseline Historical Mean</span>
-                  <span className="text-sm font-semibold">{formatNumber(targetBaselineMean, 2)}</span>
-                </div>
-                <div
-                  className={`flex items-center gap-1 font-bold text-xs px-2.5 py-1 rounded-lg ${
-                    deltaPercent >= 0 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
+                <span
+                  className={`text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
+                    deltaPercent >= 0
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                   }`}
                 >
                   {deltaPercent >= 0 ? (
@@ -367,372 +470,388 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
                   ) : (
                     <ArrowDownRight className="w-3.5 h-3.5" />
                   )}
-                  <span>{deltaPercent >= 0 ? `+${deltaPercent.toFixed(1)}%` : `${deltaPercent.toFixed(1)}%`}</span>
+                  <span>{deltaPercent >= 0 ? '+' : ''}{deltaPercent.toFixed(1)}% vs Baseline</span>
+                </span>
+              </div>
+
+              <div>
+                <div className="text-xs text-slate-400">Projected {targetCol}</div>
+                <div className="text-3xl sm:text-4xl font-extrabold font-mono text-white tracking-tight mt-1">
+                  {formatNumber(whatIfPrediction.predictedValue, 2)}
                 </div>
               </div>
 
-              {/* Confidence interval bounds */}
-              <div className="text-xs text-slate-300 space-y-1 pt-2 border-t border-white/10">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Lower Bound (-1.64σ):</span>
-                  <span className="font-mono font-medium">{formatNumber(whatIfPrediction?.lowerBound || 0, 2)}</span>
+              {/* Confidence Interval Cone */}
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-xs space-y-1">
+                <div className="text-slate-300 font-medium">90% Confidence Interval Range:</div>
+                <div className="font-mono text-indigo-200 font-bold">
+                  [{formatNumber(whatIfPrediction.lowerBound, 2)} ...{' '}
+                  {formatNumber(whatIfPrediction.upperBound, 2)}]
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Upper Bound (+1.64σ):</span>
-                  <span className="font-mono font-medium">{formatNumber(whatIfPrediction?.upperBound || 0, 2)}</span>
+                <div className="text-[10px] text-slate-400 mt-1">
+                  Historical Mean Baseline: {formatNumber(targetBaselineMean, 2)}
                 </div>
               </div>
             </div>
 
-            {/* Model Equation Card */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-600" />
-                <h4 className="text-xs font-bold text-slate-800">Mathematical Regression Formula</h4>
+            {/* Saved Scenarios Comparison Matrix */}
+            <div className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider">
+                  Scenario Comparison Matrix ({savedScenarios.length})
+                </h4>
               </div>
-              <div className="bg-slate-50 rounded-xl p-3 font-mono text-[11px] text-slate-700 leading-relaxed overflow-x-auto border border-slate-200">
-                <span className="font-bold text-blue-600">{targetCol}</span> = {model.intercept}
-                {Object.entries(model.coefficients).map(([feat, coeff]) => (
-                  <span key={feat}>
-                    {' '}
-                    {coeff >= 0 ? '+' : '-'}{' '}
-                    <span className="font-semibold text-slate-900">{Math.abs(coeff)}</span>
-                    <span className="text-slate-500">×[{feat}]</span>
-                  </span>
-                ))}
-              </div>
-              <p className="text-[11px] text-slate-500">
-                This linear equation maps input features directly to the target outcome with an empirical R² explanatory power of{' '}
-                <strong className="text-slate-700">{(model.rSquared * 100).toFixed(1)}%</strong>.
-              </p>
+
+              {savedScenarios.length > 0 ? (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {savedScenarios.map((scen) => (
+                    <div
+                      key={scen.id}
+                      className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div>
+                        <div className="font-extrabold text-slate-800">{scen.name}</div>
+                        <div className="text-[10px] text-slate-400">{scen.createdAt}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-mono font-extrabold text-indigo-600">
+                          {formatNumber(scen.predictedValue, 2)}
+                        </div>
+                        <div
+                          className={`text-[10px] font-bold ${
+                            scen.deltaFromBaseline >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                          }`}
+                        >
+                          {scen.deltaFromBaseline >= 0 ? '+' : ''}
+                          {scen.deltaFromBaseline.toFixed(1)}%
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleApplyScenario(scen)}
+                          className="px-2 py-1 bg-white border border-slate-200 hover:bg-indigo-50 text-indigo-600 font-bold rounded-lg text-[11px]"
+                        >
+                          Apply
+                        </button>
+                        <button
+                          onClick={() => handleDeleteScenario(scen.id)}
+                          className="p-1 text-slate-400 hover:text-rose-600"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center text-slate-400 text-xs">
+                  No scenarios saved yet. Use "Save Scenario" above to compare multiple What-If hypotheses side-by-side.
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* -------------------------------------------------- */}
-      {/* 2. AUTOML & FEATURE WEIGHTS */}
-      {/* -------------------------------------------------- */}
-      {activeTab === 'automl' && model && (
-        <div className="space-y-6">
-          {/* Feature Selection & Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-              <span className="text-xs text-slate-500 block mb-1">R² (Variance Explained)</span>
-              <span className="text-2xl font-bold text-blue-600">{(model.rSquared * 100).toFixed(1)}%</span>
-              <p className="text-[10px] text-slate-400 mt-1">High explanatory accuracy</p>
+      {/* ---------------------------------------------------- */}
+      {/* SUB-TAB 2: GOAL SEEK (INVERSE OPTIMIZER) */}
+      {/* ---------------------------------------------------- */}
+      {activeTab === 'goalseek' && model && (
+        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-6">
+          <div>
+            <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+              <Target className="w-4 h-4 text-indigo-600" />
+              Goal Seek & Inverse Optimization Engine
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Specify your target desired outcome, choose an adjustable lever, and mathematically solve for the exact required input.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 block uppercase tracking-wider">
+                Desired Target Goal for {targetCol}
+              </label>
+              <input
+                type="number"
+                value={goalSeekTargetValue}
+                onChange={(e) => setGoalSeekTargetValue(Number(e.target.value))}
+                className="w-full text-sm font-mono font-bold bg-slate-50 border border-slate-200 rounded-2xl p-3 text-slate-900 focus:outline-none focus:border-indigo-500"
+              />
             </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-              <span className="text-xs text-slate-500 block mb-1">Root Mean Sq Error (RMSE)</span>
-              <span className="text-2xl font-bold text-slate-800">{model.rmse}</span>
-              <p className="text-[10px] text-slate-400 mt-1">Standard error of residuals</p>
-            </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-              <span className="text-xs text-slate-500 block mb-1">Mean Absolute Error (MAE)</span>
-              <span className="text-2xl font-bold text-slate-800">{model.mae}</span>
-              <p className="text-[10px] text-slate-400 mt-1">Average point deviation</p>
-            </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-              <span className="text-xs text-slate-500 block mb-1">Active Predictors</span>
-              <span className="text-2xl font-bold text-indigo-600">{selectedFeatures.length}</span>
-              <p className="text-[10px] text-slate-400 mt-1">Continuous parameters</p>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 block uppercase tracking-wider">
+                Adjustable Lever (Independent Variable to Optimize)
+              </label>
+              <select
+                value={goalSeekLeverCol}
+                onChange={(e) => setGoalSeekLeverCol(e.target.value)}
+                className="w-full text-xs font-bold bg-slate-50 border border-slate-200 rounded-2xl p-3 text-slate-900 focus:outline-none focus:border-indigo-500"
+              >
+                {selectedFeatures.map((feat) => (
+                  <option key={feat} value={feat}>
+                    {feat} (Coeff: {model.coefficients[feat]?.toFixed(3) || 0})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          {/* Feature Importance Chart */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">Feature Importance Ranking</h3>
-                <p className="text-xs text-slate-500">
-                  Relative impact of each independent feature on {targetCol}
-                </p>
+          <button
+            onClick={handleRunGoalSeek}
+            className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-md shadow-indigo-500/20 transition flex items-center gap-2"
+          >
+            <Compass className="w-4 h-4" />
+            <span>Solve for Required {goalSeekLeverCol}</span>
+          </button>
+
+          {/* Goal Seek Results Card */}
+          {goalSeekResult && (
+            <div className="bg-slate-50 rounded-3xl border border-slate-200/80 p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase text-slate-500 tracking-wider">
+                  Optimization Calculation Output
+                </span>
+                <span
+                  className={`text-xs font-extrabold px-3 py-1 rounded-full flex items-center gap-1.5 ${
+                    goalSeekResult.isFeasible
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}
+                >
+                  {goalSeekResult.isFeasible ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  )}
+                  <span>
+                    {goalSeekResult.isFeasible
+                      ? 'Feasible Parameter Value'
+                      : 'Outside Historical Range (Extrapolation Alert)'}
+                  </span>
+                </span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-500">Toggle Features:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {numCols
-                    .filter((c) => c.name !== targetCol)
-                    .map((col) => {
-                      const isSelected = selectedFeatures.includes(col.name);
-                      return (
-                        <button
-                          key={col.name}
-                          onClick={() => handleToggleFeature(col.name)}
-                          className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition ${
-                            isSelected
-                              ? 'bg-blue-50 border-blue-300 text-blue-700 font-semibold'
-                              : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600'
-                          }`}
-                        >
-                          {col.name}
-                        </button>
-                      );
-                    })}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                  <span className="text-[11px] text-slate-400 font-bold uppercase block">
+                    Required {goalSeekResult.leverName}
+                  </span>
+                  <span className="text-2xl font-extrabold font-mono text-indigo-600 mt-1 block">
+                    {formatNumber(goalSeekResult.requiredValue, 2)}
+                  </span>
+                </div>
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                  <span className="text-[11px] text-slate-400 font-bold uppercase block">
+                    Historical Observed Range
+                  </span>
+                  <span className="text-sm font-extrabold font-mono text-slate-800 mt-1.5 block">
+                    [{formatNumber(goalSeekResult.minHistorical, 1)} ...{' '}
+                    {formatNumber(goalSeekResult.maxHistorical, 1)}]
+                  </span>
+                </div>
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                  <span className="text-[11px] text-slate-400 font-bold uppercase block">
+                    Target Goal
+                  </span>
+                  <span className="text-sm font-extrabold font-mono text-emerald-600 mt-1.5 block">
+                    {targetCol} = {formatNumber(goalSeekTargetValue, 2)}
+                  </span>
                 </div>
               </div>
             </div>
+          )}
+        </div>
+      )}
 
-            <div className="h-64">
+      {/* ---------------------------------------------------- */}
+      {/* SUB-TAB 3: MODEL DIAGNOSTICS & FEATURE IMPORTANCE */}
+      {/* ---------------------------------------------------- */}
+      {activeTab === 'automl' && model && (
+        <div className="space-y-6">
+          {/* Diagnostic Metrics Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
+              <span className="text-slate-400 font-bold uppercase text-[10px]">R² (Goodness of Fit)</span>
+              <span className="text-2xl font-extrabold font-mono text-slate-900 mt-1 block">
+                {(model.rSquared * 100).toFixed(1)}%
+              </span>
+              <span className="text-[10px] text-slate-500 mt-1 block">
+                Variance explained by model
+              </span>
+            </div>
+            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
+              <span className="text-slate-400 font-bold uppercase text-[10px]">RMSE (Root Mean Sq Err)</span>
+              <span className="text-2xl font-extrabold font-mono text-slate-900 mt-1 block">
+                {formatNumber(model.rmse, 2)}
+              </span>
+              <span className="text-[10px] text-slate-500 mt-1 block">
+                Std deviation of residuals
+              </span>
+            </div>
+            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
+              <span className="text-slate-400 font-bold uppercase text-[10px]">MAE (Mean Abs Err)</span>
+              <span className="text-2xl font-extrabold font-mono text-slate-900 mt-1 block">
+                {formatNumber(model.mae, 2)}
+              </span>
+              <span className="text-[10px] text-slate-500 mt-1 block">
+                Average absolute error
+              </span>
+            </div>
+            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
+              <span className="text-slate-400 font-bold uppercase text-[10px]">Features in Model</span>
+              <span className="text-2xl font-extrabold font-mono text-indigo-600 mt-1 block">
+                {selectedFeatures.length}
+              </span>
+              <span className="text-[10px] text-slate-500 mt-1 block">
+                Intercept: {formatNumber(model.intercept, 2)}
+              </span>
+            </div>
+          </div>
+
+          {/* Feature Importance Bar Chart */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <h3 className="font-extrabold text-sm text-slate-900">
+              Normalized Feature Importance & Sensitivity Rankings
+            </h3>
+            <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={model.featureImportance} layout="vertical" margin={{ left: 40, right: 30 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis type="number" domain={[0, 1]} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="feature" tick={{ fontSize: 11, fontWeight: 600 }} />
-                  <Tooltip
-                    formatter={(val: any) => [`${(Number(val) * 100).toFixed(1)}%`, 'Relative Weight']}
-                  />
-                  <Bar dataKey="importance" radius={[0, 6, 6, 0]}>
-                    {model.featureImportance.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Bar>
+                <BarChart
+                  data={model.featureImportance}
+                  layout="vertical"
+                  margin={{ top: 10, right: 30, left: 80, bottom: 10 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" stroke="#94a3b8" fontSize={11} domain={[0, 1]} />
+                  <YAxis type="category" dataKey="feature" stroke="#64748b" fontSize={11} />
+                  <Tooltip />
+                  <Bar dataKey="importance" fill="#4f46e5" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
-
-          {/* Actual vs Predicted Table */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-800">Sample Predictions vs Actual Observations</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-semibold bg-slate-50">
-                    <th className="py-2.5 px-4">Observation #</th>
-                    <th className="py-2.5 px-4">Actual {targetCol}</th>
-                    <th className="py-2.5 px-4">Model Predicted</th>
-                    <th className="py-2.5 px-4">Residual Error</th>
-                    <th className="py-2.5 px-4">Variance %</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {model.samplePredictions.map((pred, i) => {
-                    const variancePct = pred.actual > 0 ? (pred.residual / pred.actual) * 100 : 0;
-                    return (
-                      <tr key={i} className="hover:bg-slate-50/80">
-                        <td className="py-2.5 px-4 font-mono text-slate-400">#{i + 1}</td>
-                        <td className="py-2.5 px-4 font-semibold text-slate-800">{pred.actual}</td>
-                        <td className="py-2.5 px-4 font-semibold text-blue-600">{pred.predicted}</td>
-                        <td className="py-2.5 px-4 font-mono text-slate-600">
-                          {pred.residual >= 0 ? `+${pred.residual}` : pred.residual}
-                        </td>
-                        <td className="py-2.5 px-4">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                              Math.abs(variancePct) < 15
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-amber-50 text-amber-700'
-                            }`}
-                          >
-                            {Math.abs(variancePct).toFixed(1)}%
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
       )}
 
-      {/* -------------------------------------------------- */}
-      {/* 3. TIME-SERIES FORECASTING */}
-      {/* -------------------------------------------------- */}
+      {/* ---------------------------------------------------- */}
+      {/* SUB-TAB 4: TIME-SERIES FORECASTING */}
+      {/* ---------------------------------------------------- */}
       {activeTab === 'forecasting' && (
         <div className="space-y-6">
-          {/* Controls Bar */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div>
-                <label className="text-xs font-semibold text-slate-600 block mb-1">Date Parameter:</label>
-                <select
-                  value={forecastDateCol}
-                  onChange={(e) => setForecastDateCol(e.target.value)}
-                  className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800"
-                >
-                  {dateCols.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-indigo-600" />
+                  Time-Series Holt-Winters Linear Projection Engine
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Extrapolate historical chronological trajectories into future periods with uncertainty cones
+                </p>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-600 block mb-1">Target Metric:</label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-700">Horizon:</span>
                 <select
-                  value={forecastValCol}
-                  onChange={(e) => setForecastValCol(e.target.value)}
-                  className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800"
+                  value={forecastHorizon}
+                  onChange={(e) => setForecastHorizon(Number(e.target.value))}
+                  className="text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5"
                 >
-                  {numCols.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
+                  <option value={3}>Next 3 Periods</option>
+                  <option value={6}>Next 6 Periods</option>
+                  <option value={12}>Next 12 Periods</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-600 block mb-1">Projection Horizon:</label>
-                <div className="flex items-center gap-1">
-                  {[3, 6, 12].map((h) => (
-                    <button
-                      key={h}
-                      onClick={() => setForecastHorizon(h)}
-                      className={`text-xs px-3 py-1.5 rounded-lg font-semibold border transition ${
-                        forecastHorizon === h
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      {h} Months
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
 
-            {forecastResult && (
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <span className="text-xs text-slate-500 block">Projected Growth</span>
-                  <span
-                    className={`text-sm font-bold flex items-center justify-end gap-1 ${
-                      forecastResult.growthRatePercent >= 0 ? 'text-emerald-600' : 'text-rose-600'
-                    }`}
-                  >
-                    {forecastResult.growthRatePercent >= 0 ? (
-                      <ArrowUpRight className="w-4 h-4" />
-                    ) : (
-                      <ArrowDownRight className="w-4 h-4" />
-                    )}
-                    {forecastResult.growthRatePercent > 0
-                      ? `+${forecastResult.growthRatePercent}%`
-                      : `${forecastResult.growthRatePercent}%`}
-                  </span>
+            {forecastResult ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
+                    <span className="text-slate-400 font-bold uppercase text-[10px]">
+                      Historical Average
+                    </span>
+                    <span className="text-lg font-extrabold font-mono text-slate-900 mt-1 block">
+                      {formatNumber(forecastResult.summary.historicalAverage, 2)}
+                    </span>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
+                    <span className="text-slate-400 font-bold uppercase text-[10px]">
+                      Projected Forecast Average
+                    </span>
+                    <span className="text-lg font-extrabold font-mono text-indigo-600 mt-1 block">
+                      {formatNumber(forecastResult.summary.forecastAverage, 2)}
+                    </span>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
+                    <span className="text-slate-400 font-bold uppercase text-[10px]">
+                      Projected Growth Trajectory
+                    </span>
+                    <span
+                      className={`text-lg font-extrabold font-mono mt-1 block ${
+                        forecastResult.growthRatePercent >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                      }`}
+                    >
+                      {forecastResult.growthRatePercent >= 0 ? '+' : ''}
+                      {forecastResult.growthRatePercent}%
+                    </span>
+                  </div>
                 </div>
+
+                <div className="h-80 w-full pt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={forecastResult.historyAndForecast}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
+                      <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(v) => formatNumber(v, 0)} />
+                      <Tooltip />
+                      <Legend />
+                      <Area
+                        type="monotone"
+                        dataKey="confidenceUpper"
+                        stroke="none"
+                        fill="#cbd5e1"
+                        fillOpacity={0.4}
+                        name="90% Upper Bound"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="confidenceLower"
+                        stroke="none"
+                        fill="#ffffff"
+                        fillOpacity={1}
+                        name="90% Lower Bound"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="actual"
+                        stroke="#0f172a"
+                        strokeWidth={3}
+                        name="Observed Actual"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="forecast"
+                        stroke="#4f46e5"
+                        strokeWidth={3}
+                        strokeDasharray="4 4"
+                        name="Projected Forecast"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            ) : (
+              <div className="py-12 text-center text-slate-400 text-xs">
+                No date column identified for temporal forecasting.
               </div>
             )}
           </div>
-
-          {/* Forecasting Visualization */}
-          {forecastResult ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800">
-                    Holt-Winters Trend Forecast with 90% Confidence Tunnel
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Historical sequence + {forecastHorizon}-step projected trajectory with upper & lower variance bands
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="flex items-center gap-1.5 text-slate-600">
-                    <span className="w-3 h-0.5 bg-blue-600 rounded" /> Actuals
-                  </span>
-                  <span className="flex items-center gap-1.5 text-slate-600">
-                    <span className="w-3 h-0.5 bg-indigo-500 border-dashed rounded" /> Forecast
-                  </span>
-                  <span className="flex items-center gap-1.5 text-slate-600">
-                    <span className="w-3 h-3 bg-indigo-100 rounded" /> 90% Confidence
-                  </span>
-                </div>
-              </div>
-
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={forecastResult.historyAndForecast}
-                    margin={{ top: 10, right: 30, left: 20, bottom: 20 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip
-                      formatter={(val: any, name: any) => [
-                        formatNumber(Number(val), 2),
-                        name === 'actual'
-                          ? 'Historical Value'
-                          : name === 'forecast'
-                          ? 'Forecast'
-                          : name === 'confidenceUpper'
-                          ? 'Upper Bound (+90%)'
-                          : 'Lower Bound (-90%)',
-                      ]}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="confidenceUpper"
-                      stroke="none"
-                      fill="#e0e7ff"
-                      fillOpacity={0.6}
-                      name="confidenceUpper"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="confidenceLower"
-                      stroke="none"
-                      fill="#ffffff"
-                      fillOpacity={1}
-                      name="confidenceLower"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="actual"
-                      stroke="#2563eb"
-                      strokeWidth={2.5}
-                      dot={{ r: 3 }}
-                      name="actual"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="forecast"
-                      stroke="#6366f1"
-                      strokeWidth={2.5}
-                      strokeDasharray="4 4"
-                      dot={{ r: 4 }}
-                      name="forecast"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Forecast Summary Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
-                <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200">
-                  <span className="text-xs text-slate-500 block">Historical Baseline Average</span>
-                  <span className="text-lg font-bold text-slate-800">
-                    {formatNumber(forecastResult.summary.historicalAverage, 2)}
-                  </span>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200">
-                  <span className="text-xs text-slate-500 block">Forecast Horizon Average</span>
-                  <span className="text-lg font-bold text-indigo-600">
-                    {formatNumber(forecastResult.summary.forecastAverage, 2)}
-                  </span>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200">
-                  <span className="text-xs text-slate-500 block">Trend Classification</span>
-                  <span className="text-lg font-bold text-emerald-600 uppercase">
-                    {forecastResult.trendDirection}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 space-y-3">
-              <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
-              <p className="text-sm font-semibold text-slate-700">No time-series date column detected</p>
-              <p className="text-xs text-slate-500">
-                Forecasting requires at least one date or timestamp dimension in the dataset.
-              </p>
-            </div>
-          )}
         </div>
       )}
     </div>

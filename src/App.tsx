@@ -146,6 +146,36 @@ export function App() {
     }
   };
 
+  const handleAddColumn = async (columnName: string, expression: string, formulaType: string) => {
+    if (!dataset) return;
+    try {
+      const res = await fetch(`/api/dataset/${dataset.id}/add-column`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ columnName, expression, formulaType }),
+      });
+      const data = await res.json();
+      if (data.success && data.dataset) {
+        setDataset(data.dataset);
+      } else {
+        throw new Error(data.error || 'Failed to add column');
+      }
+    } catch (err) {
+      console.error('Error adding calculated column:', err);
+      throw err;
+    }
+  };
+
+  const handleUpdateRow = (rowIndex: number, updatedRow: Record<string, any>) => {
+    if (!dataset) return;
+    const newCleanedRows = [...dataset.cleanedRows];
+    newCleanedRows[rowIndex] = updatedRow;
+    setDataset({
+      ...dataset,
+      cleanedRows: newCleanedRows,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-100/60 text-slate-900 flex flex-col font-sans antialiased relative selection:bg-blue-600 selection:text-white">
       {/* Subtle Ambient Radial Lighting */}
@@ -227,7 +257,13 @@ export function App() {
                 />
               )}
 
-              {currentTab === 'data' && <DataTableView dataset={dataset} />}
+              {currentTab === 'data' && (
+                <DataTableView
+                  dataset={dataset}
+                  onAddColumn={handleAddColumn}
+                  onUpdateRow={handleUpdateRow}
+                />
+              )}
             </div>
           </>
         )}
