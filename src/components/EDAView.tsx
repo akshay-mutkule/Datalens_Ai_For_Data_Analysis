@@ -363,12 +363,12 @@ export const EDAView: React.FC<EDAViewProps> = ({ dataset }) => {
                     </span>
                     <span
                       className={`text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
-                        t.significant
+                        t.isSignificant
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : 'bg-slate-100 text-slate-600'
                       }`}
                     >
-                      {t.significant ? (
+                      {t.isSignificant ? (
                         <>
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           Statistically Significant
@@ -383,8 +383,8 @@ export const EDAView: React.FC<EDAViewProps> = ({ dataset }) => {
 
                   <div className="bg-slate-50 rounded-xl p-3 text-xs space-y-1.5 border border-slate-100">
                     <div className="flex justify-between text-slate-600">
-                      <span>Test Statistic ({t.testType.includes('T-Test') ? 't-score' : 'stat'}):</span>
-                      <span className="font-mono font-bold text-slate-800">{t.statistic}</span>
+                      <span>Test Statistic ({t.testStatisticName || 'Statistic'}):</span>
+                      <span className="font-mono font-bold text-slate-800">{typeof t.testStatisticValue === 'number' ? t.testStatisticValue.toFixed(3) : t.testStatisticValue}</span>
                     </div>
                     <div className="flex justify-between text-slate-600">
                       <span>p-value:</span>
@@ -398,7 +398,7 @@ export const EDAView: React.FC<EDAViewProps> = ({ dataset }) => {
                     </div>
                     <div className="flex justify-between text-slate-600">
                       <span>Significance Threshold (α):</span>
-                      <span className="font-mono">{t.alpha}</span>
+                      <span className="font-mono">0.05</span>
                     </div>
                   </div>
                 </div>

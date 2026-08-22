@@ -23,7 +23,10 @@ import {
   ClusteredPoint,
   AnomalyDetectionResult,
   AnomalyRecord,
+  AnomalousFieldDetail,
   CohortAnalysisResult,
+  CohortRow,
+  CohortPeriodData,
   DataScienceCodePackage,
   DatasetState,
 } from '../types/dataset';

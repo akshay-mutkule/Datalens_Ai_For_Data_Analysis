@@ -236,7 +236,7 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
     for (const [feat, coeff] of Object.entries(model.coefficients)) {
       if (feat !== goalSeekLeverCol) {
         const val = sliderValues[feat] || 0;
-        otherTermsSum += coeff * val;
+        otherTermsSum += Number(coeff) * val;
       }
     }
 

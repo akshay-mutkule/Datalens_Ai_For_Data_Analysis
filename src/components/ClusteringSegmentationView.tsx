@@ -256,7 +256,7 @@ export const ClusteringSegmentationView: React.FC<ClusteringSegmentationViewProp
                     {Object.entries(cluster.centroid).slice(0, 4).map(([field, val]) => (
                       <div key={field} className="bg-slate-50 p-1.5 rounded-lg border border-slate-100">
                         <span className="text-[10px] text-slate-400 truncate block">{field.replace(/_/g, ' ')}</span>
-                        <span className="font-bold text-slate-800">{formatNumber(val)}</span>
+                        <span className="font-bold text-slate-800">{formatNumber(Number(val))}</span>
                       </div>
                     ))}
                   </div>

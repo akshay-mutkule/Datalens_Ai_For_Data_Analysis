@@ -86,8 +86,8 @@ export const DataTableView: React.FC<DataTableViewProps> = ({
 
     // 2. Per-Column Filters
     for (const [col, filterVal] of Object.entries(columnFilters)) {
-      if (filterVal && filterVal.trim() !== '') {
-        const f = filterVal.toLowerCase().trim();
+      if (filterVal && String(filterVal).trim() !== '') {
+        const f = String(filterVal).toLowerCase().trim();
         result = result.filter((row) => {
           const val = row[col];
           if (val === null || val === undefined) return false;
