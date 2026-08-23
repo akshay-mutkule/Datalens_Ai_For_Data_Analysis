@@ -388,4 +388,65 @@ export interface DataScienceCodePackage {
   jupyterNotebookJson: string;
 }
 
+// ----------------------------------------------------
+// AutoML Tournament & Multi-Model Arena
+// ----------------------------------------------------
+export interface TournamentModelItem {
+  id: string;
+  name: string;
+  algorithm: 'OLS Linear' | 'Ridge Regression (L2)' | 'Polynomial (Deg 2)' | 'Decision Tree (CART)' | 'Random Forest (Ensemble)';
+  rSquared: number;
+  rmse: number;
+  mae: number;
+  maxResidual: number;
+  trainingTimeMs: number;
+  hyperparameters: Record<string, any>;
+  isChampion: boolean;
+  notes: string;
+  featureImportance: { feature: string; importance: number }[];
+  predictions: { actual: number; predicted: number }[];
+}
+
+export interface DecisionTreeNode {
+  id: string;
+  feature?: string;
+  threshold?: number;
+  prediction?: number;
+  sampleCount: number;
+  mse: number;
+  isLeaf: boolean;
+  left?: DecisionTreeNode;
+  right?: DecisionTreeNode;
+  depth: number;
+}
+
+export interface KeyDriverDecomposition {
+  feature: string;
+  shapleyPercent: number;
+  elasticityPercent: number;
+  impactDirection: 'positive' | 'negative';
+  interpretation: string;
+}
+
+// ----------------------------------------------------
+// Data Blending & Multi-Dataset Studio
+// ----------------------------------------------------
+export interface BlendLookupSource {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  rows: Record<string, any>[];
+  joinKeyOptions: string[];
+}
+
+export interface BlendingResult {
+  joinedRows: Record<string, any>[];
+  matchRatePercent: number;
+  unmatchedLeftCount: number;
+  unmatchedRightCount: number;
+  newColumnsAdded: string[];
+  summary: string;
+}
+
 

@@ -21,6 +21,7 @@ import {
   Calendar,
   Code,
   Zap,
+  GitMerge,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
@@ -54,6 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'ml', label: 'Predictive & ML', icon: Brain, badge: 'AutoML' },
+    { id: 'blending', label: 'Data Blending', icon: GitMerge, badge: 'Fusion' },
     { id: 'clustering', label: 'Clusters & PCA', icon: Users, badge: 'K-Means' },
     { id: 'anomalies', label: 'Anomaly Sentinel', icon: ShieldAlert },
     { id: 'cohorts', label: 'Cohort Retention', icon: Calendar },

@@ -10,6 +10,7 @@ import { AIChatView } from './components/AIChatView';
 import { ReportView } from './components/ReportView';
 import { DataTableView } from './components/DataTableView';
 import { PredictiveMLView } from './components/PredictiveMLView';
+import { DataBlendingView } from './components/DataBlendingView';
 import { SQLStudioView } from './components/SQLStudioView';
 import { PivotTableView } from './components/PivotTableView';
 import { ClusteringSegmentationView } from './components/ClusteringSegmentationView';
@@ -176,6 +177,33 @@ export function App() {
     });
   };
 
+  const handleApplyMergedDataset = async (mergedRows: Record<string, any>[], summary: string) => {
+    if (!dataset) return;
+    setIsProcessing(true);
+    setProcessingStep('Integrating fused dataset and recalculating KPIs...');
+
+    try {
+      const res = await fetch(`/api/dataset/${dataset.id}/blend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mergedRows }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.dataset) {
+        setDataset(data.dataset);
+        setCurrentTab('dashboard');
+      } else {
+        throw new Error(data.error || 'Failed to apply data blend');
+      }
+    } catch (err) {
+      console.error('Data blend failed:', err);
+    } finally {
+      setIsProcessing(false);
+      setProcessingStep('');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100/60 text-slate-900 flex flex-col font-sans antialiased relative selection:bg-blue-600 selection:text-white">
       {/* Subtle Ambient Radial Lighting */}
@@ -222,6 +250,13 @@ export function App() {
               )}
 
               {currentTab === 'ml' && <PredictiveMLView dataset={dataset} />}
+
+              {currentTab === 'blending' && (
+                <DataBlendingView
+                  dataset={dataset}
+                  onApplyMergedDataset={handleApplyMergedDataset}
+                />
+              )}
 
               {currentTab === 'clustering' && <ClusteringSegmentationView dataset={dataset} />}
 

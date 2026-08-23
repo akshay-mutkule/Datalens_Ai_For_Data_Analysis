@@ -337,6 +337,42 @@ async function startServer() {
     }
   });
 
+  // API 11b: Apply Data Blend / Fusion to Dataset
+  app.post('/api/dataset/:id/blend', (req, res) => {
+    try {
+      const dataset = datasetStore.get(req.params.id);
+      if (!dataset) return res.status(404).json({ error: 'Dataset not found' });
+
+      const { mergedRows } = req.body;
+      if (!Array.isArray(mergedRows) || mergedRows.length === 0) {
+        return res.status(400).json({ error: 'Valid merged rows array is required' });
+      }
+
+      const updatedProfile = profileDataset(
+        mergedRows,
+        `${dataset.profile.fileName.replace(/\.[^/.]+$/, '')}_fused.csv`,
+        dataset.profile.fileSizeBytes * 1.5
+      );
+      const kpis = generateKPIs(mergedRows, updatedProfile);
+      const charts = generateSmartCharts(mergedRows, updatedProfile);
+      const correlations = generateCorrelationMatrix(mergedRows, updatedProfile);
+      const insights = generateAutomatedInsights(mergedRows, updatedProfile, kpis, correlations);
+
+      dataset.cleanedRows = mergedRows;
+      dataset.profile = updatedProfile;
+      dataset.headers = Object.keys(mergedRows[0] || {});
+      dataset.kpis = kpis;
+      dataset.charts = charts;
+      dataset.correlations = correlations;
+      dataset.insights = insights;
+
+      datasetStore.set(dataset.id, dataset);
+      res.json({ success: true, dataset });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to apply blended dataset' });
+    }
+  });
+
   // API 5b: Run K-Means Clustering & PCA Projection
   app.post('/api/dataset/:id/clustering', (req, res) => {
     try {

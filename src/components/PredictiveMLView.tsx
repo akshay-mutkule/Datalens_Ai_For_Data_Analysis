@@ -19,6 +19,12 @@ import {
   Trash2,
   Compass,
   Zap,
+  Trophy,
+  GitBranch,
+  Gauge,
+  HelpCircle,
+  TrendingDown,
+  Cpu,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -35,16 +41,23 @@ import {
   Legend,
   Cell,
   ReferenceLine,
+  ScatterChart,
+  Scatter,
 } from 'recharts';
 import {
   DatasetState,
   MLModelResult,
   ForecastResult,
+  TournamentModelItem,
+  DecisionTreeNode,
+  KeyDriverDecomposition,
 } from '../types/dataset';
 import {
   trainRegressionModel,
   predictWhatIfValue,
   forecastTimeSeries,
+  runAutoMLTournament,
+  TournamentResult,
   formatNumber,
   formatCurrency,
 } from '../services/dataEngine';
@@ -86,6 +99,10 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [model, setModel] = useState<MLModelResult | null>(null);
 
+  // Tournament State
+  const [tournamentResult, setTournamentResult] = useState<TournamentResult | null>(null);
+  const [selectedTournamentModel, setSelectedTournamentModel] = useState<TournamentModelItem | null>(null);
+
   // What-If Sliders State
   const [sliderValues, setSliderValues] = useState<Record<string, number>>({});
 
@@ -111,9 +128,9 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
   const [forecastResult, setForecastResult] = useState<ForecastResult | null>(null);
 
   // Active Sub-Tab
-  const [activeTab, setActiveTab] = useState<'simulator' | 'goalseek' | 'automl' | 'forecasting'>('simulator');
+  const [activeTab, setActiveTab] = useState<'tournament' | 'simulator' | 'goalseek' | 'drivers' | 'tree' | 'forecasting'>('tournament');
 
-  // Initialize features and model when target changes
+  // Initialize features, baseline model and tournament when target changes
   useEffect(() => {
     if (!targetCol) return;
     const availableFeatures = numCols.filter((c) => c.name !== targetCol).map((c) => c.name);
@@ -121,6 +138,13 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
 
     const trained = trainRegressionModel(dataset.cleanedRows, targetCol, availableFeatures);
     setModel(trained);
+
+    // Run AutoML tournament
+    if (availableFeatures.length > 0) {
+      const tourney = runAutoMLTournament(dataset.cleanedRows, targetCol, availableFeatures);
+      setTournamentResult(tourney);
+      setSelectedTournamentModel(tourney.championModel);
+    }
 
     if (availableFeatures.length > 0 && !goalSeekLeverCol) {
       setGoalSeekLeverCol(availableFeatures[0]);
@@ -142,7 +166,7 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
     }
   }, [targetCol, dataset.cleanedRows, numCols]);
 
-  // Train model on feature selection change
+  // Re-run tournament when feature selection changes
   const handleToggleFeature = (feat: string) => {
     let updated: string[];
     if (selectedFeatures.includes(feat)) {
@@ -154,6 +178,12 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
     setSelectedFeatures(updated);
     const trained = trainRegressionModel(dataset.cleanedRows, targetCol, updated);
     setModel(trained);
+
+    if (updated.length > 0) {
+      const tourney = runAutoMLTournament(dataset.cleanedRows, targetCol, updated);
+      setTournamentResult(tourney);
+      setSelectedTournamentModel(tourney.championModel);
+    }
   };
 
   // Run Forecast
@@ -256,6 +286,60 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
     });
   };
 
+  // Recursive Decision Tree Node Component
+  const renderTreeNode = (node: DecisionTreeNode) => {
+    if (node.isLeaf) {
+      return (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 shadow-2xs text-center min-w-[140px]">
+          <div className="text-[10px] uppercase font-extrabold text-emerald-700">Leaf Node (Outcome)</div>
+          <div className="text-base font-black text-emerald-950 mt-1">{formatNumber(node.prediction || 0)}</div>
+          <div className="text-[10px] text-emerald-600 mt-0.5">
+            n = {node.sampleCount} rows | MSE: {node.mse}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center">
+        {/* Current Decision Split Box */}
+        <div className="bg-white border-2 border-indigo-500/80 rounded-2xl p-3.5 shadow-sm text-center min-w-[180px]">
+          <div className="text-[10px] uppercase font-extrabold text-indigo-600 flex items-center justify-center gap-1">
+            <GitBranch className="w-3 h-3" /> Split Condition
+          </div>
+          <div className="text-xs font-black text-slate-900 mt-1">
+            {node.feature?.replace(/_/g, ' ')} &le; {formatNumber(node.threshold || 0)}
+          </div>
+          <div className="text-[10px] text-slate-500 mt-0.5">
+            Sub-samples: {node.sampleCount} | Mean: {formatNumber(node.prediction || 0)}
+          </div>
+        </div>
+
+        {/* Branch Lines and Children */}
+        <div className="flex items-start gap-8 mt-4 relative pt-4">
+          <div className="absolute top-0 left-1/4 right-1/4 h-0.5 bg-slate-300" />
+          <div className="absolute top-0 left-1/2 w-0.5 h-4 bg-slate-300 -translate-x-1/2" />
+
+          {/* Left Branch (True / <=) */}
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md mb-2 border border-indigo-200">
+              YES (&le; {formatNumber(node.threshold || 0)})
+            </span>
+            {node.left && renderTreeNode(node.left)}
+          </div>
+
+          {/* Right Branch (False / >) */}
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md mb-2 border border-amber-200">
+              NO (&gt; {formatNumber(node.threshold || 0)})
+            </span>
+            {node.right && renderTreeNode(node.right)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Configuration & Sub-Tab Bar */}
@@ -267,14 +351,14 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-extrabold text-slate-900">
-                Predictive AI, What-If Simulation & Goal Seek
+                Predictive AI, AutoML Tournament & Goal Seek
               </h2>
               <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200/80">
-                AutoML Engine
+                AutoML Suite
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Multivariate OLS regressions, inverse goal optimization, and time-series projections
+              Compare 5 algorithms, simulate what-if outcomes, solve inverse levers & inspect decision trees
             </p>
           </div>
         </div>
@@ -296,7 +380,18 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
             </select>
           </div>
 
-          <div className="flex items-center bg-slate-100 p-1 rounded-2xl gap-1 border border-slate-200/60">
+          <div className="flex flex-wrap items-center bg-slate-100 p-1 rounded-2xl gap-1 border border-slate-200/60">
+            <button
+              onClick={() => setActiveTab('tournament')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                activeTab === 'tournament'
+                  ? 'bg-white text-indigo-600 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Trophy className="w-3.5 h-3.5" />
+              <span>Model Tournament</span>
+            </button>
             <button
               onClick={() => setActiveTab('simulator')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
@@ -323,15 +418,26 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
               <span>Goal Seek</span>
             </button>
             <button
-              onClick={() => setActiveTab('automl')}
+              onClick={() => setActiveTab('drivers')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                activeTab === 'automl'
+                activeTab === 'drivers'
                   ? 'bg-white text-indigo-600 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <BarChart2 className="w-3.5 h-3.5" />
-              <span>Model Diagnostics</span>
+              <Activity className="w-3.5 h-3.5" />
+              <span>Key Drivers & Shapley</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('tree')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                activeTab === 'tree'
+                  ? 'bg-white text-indigo-600 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <GitBranch className="w-3.5 h-3.5" />
+              <span>Decision Tree (CART)</span>
             </button>
             <button
               onClick={() => setActiveTab('forecasting')}
@@ -348,8 +454,254 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
         </div>
       </div>
 
+      {/* Feature Selection Filter Strip */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-600">Active Regressor Features:</span>
+          <div className="flex flex-wrap gap-1.5">
+            {numCols
+              .filter((c) => c.name !== targetCol)
+              .map((c) => {
+                const isSelected = selectedFeatures.includes(c.name);
+                return (
+                  <button
+                    key={c.name}
+                    onClick={() => handleToggleFeature(c.name)}
+                    className={`text-xs px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
+                      isSelected
+                        ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                        : 'bg-slate-50 text-slate-400 border border-slate-200 hover:text-slate-600'
+                    }`}
+                  >
+                    {isSelected ? <CheckCircle2 className="w-3 h-3 text-indigo-600" /> : <div className="w-3 h-3 rounded-full border border-slate-300" />}
+                    {c.name}
+                  </button>
+                );
+              })}
+          </div>
+        </div>
+        <span className="text-[11px] font-semibold text-slate-400">
+          {selectedFeatures.length} features active in training set
+        </span>
+      </div>
+
       {/* ---------------------------------------------------- */}
-      {/* SUB-TAB 1: WHAT-IF SIMULATOR */}
+      {/* SUB-TAB 1: AUTOML TOURNAMENT & MULTI-MODEL LEADERBOARD */}
+      {/* ---------------------------------------------------- */}
+      {activeTab === 'tournament' && tournamentResult && (
+        <div className="space-y-6">
+          {/* Champion Model Banner */}
+          <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900 text-white rounded-3xl p-6 border border-indigo-500/30 shadow-lg relative overflow-hidden">
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] uppercase font-black px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                    Tournament Champion
+                  </span>
+                  <span className="text-xs text-indigo-200">5 Candidate Algorithms Evaluated</span>
+                </div>
+                <h3 className="text-2xl font-black tracking-tight">{tournamentResult.championModel.name}</h3>
+                <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                  {tournamentResult.championModel.notes} Best generalizability on {targetCol} with minimal residual dispersion.
+                </p>
+              </div>
+
+              {/* Champion Quick Metric Pills */}
+              <div className="flex items-center gap-3">
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 text-center min-w-[90px]">
+                  <div className="text-[10px] text-slate-300 font-bold uppercase">R² Score</div>
+                  <div className="text-xl font-black text-emerald-400 mt-0.5">
+                    {(tournamentResult.championModel.rSquared * 100).toFixed(1)}%
+                  </div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 text-center min-w-[90px]">
+                  <div className="text-[10px] text-slate-300 font-bold uppercase">RMSE</div>
+                  <div className="text-xl font-black text-white mt-0.5">
+                    {formatNumber(tournamentResult.championModel.rmse)}
+                  </div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 text-center min-w-[90px]">
+                  <div className="text-[10px] text-slate-300 font-bold uppercase">Latency</div>
+                  <div className="text-xl font-black text-indigo-300 mt-0.5">
+                    {tournamentResult.championModel.trainingTimeMs}ms
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tournament Leaderboard Table & Model Inspector */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left: Leaderboard Matrix */}
+            <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div>
+                  <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                    <Trophy className="w-4 h-4 text-indigo-600" />
+                    AutoML Algorithm Leaderboard
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Ranked by Coefficient of Determination (R²) and Root Mean Squared Error (RMSE)
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                      <th className="py-2.5 px-3">Rank & Model</th>
+                      <th className="py-2.5 px-2 text-right">R² Fit</th>
+                      <th className="py-2.5 px-2 text-right">RMSE</th>
+                      <th className="py-2.5 px-2 text-right">MAE</th>
+                      <th className="py-2.5 px-2 text-right">Train Time</th>
+                      <th className="py-2.5 px-2 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {tournamentResult.models.map((m, idx) => {
+                      const isSelected = selectedTournamentModel?.id === m.id;
+                      return (
+                        <tr
+                          key={m.id}
+                          onClick={() => setSelectedTournamentModel(m)}
+                          className={`cursor-pointer transition ${
+                            isSelected
+                              ? 'bg-indigo-50/80 font-bold text-indigo-950'
+                              : 'hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                                  idx === 0
+                                    ? 'bg-amber-400 text-amber-950 shadow-xs'
+                                    : idx === 1
+                                    ? 'bg-slate-200 text-slate-800'
+                                    : 'bg-slate-100 text-slate-500'
+                                }`}
+                              >
+                                {idx + 1}
+                              </span>
+                              <div>
+                                <span className="font-extrabold text-slate-900 block">{m.name}</span>
+                                <span className="text-[10px] text-slate-400 font-mono">{m.algorithm}</span>
+                              </div>
+                              {m.isChampion && (
+                                <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300">
+                                  Champion
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 text-right font-mono font-bold text-emerald-600">
+                            {(m.rSquared * 100).toFixed(1)}%
+                          </td>
+                          <td className="py-3 px-2 text-right font-mono font-bold text-slate-900">
+                            {formatNumber(m.rmse)}
+                          </td>
+                          <td className="py-3 px-2 text-right font-mono text-slate-600">
+                            {formatNumber(m.mae)}
+                          </td>
+                          <td className="py-3 px-2 text-right font-mono text-slate-500">
+                            {m.trainingTimeMs}ms
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTournamentModel(m);
+                              }}
+                              className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition ${
+                                isSelected
+                                  ? 'bg-indigo-600 text-white'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                              }`}
+                            >
+                              {isSelected ? 'Active' : 'Inspect'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Right: Model Deep-Dive Inspector */}
+            {selectedTournamentModel && (
+              <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div>
+                    <span className="text-[10px] uppercase font-extrabold text-indigo-600">Model Inspection</span>
+                    <h4 className="font-black text-sm text-slate-900">{selectedTournamentModel.name}</h4>
+                  </div>
+                  <span className="text-xs font-mono font-bold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-xl border border-indigo-200">
+                    R² = {(selectedTournamentModel.rSquared * 100).toFixed(1)}%
+                  </span>
+                </div>
+
+                {/* Actual vs Predicted Scatter Chart */}
+                <div>
+                  <div className="text-xs font-extrabold text-slate-800 mb-2 flex items-center justify-between">
+                    <span>Actual vs. Predicted Residual Dispersion</span>
+                    <span className="text-[10px] text-slate-400 font-normal">30 sample validations</span>
+                  </div>
+                  <div className="h-44 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis
+                          type="number"
+                          dataKey="actual"
+                          name="Actual"
+                          tick={{ fontSize: 10 }}
+                          stroke="#94a3b8"
+                        />
+                        <YAxis
+                          type="number"
+                          dataKey="predicted"
+                          name="Predicted"
+                          tick={{ fontSize: 10 }}
+                          stroke="#94a3b8"
+                        />
+                        <Tooltip
+                          cursor={{ strokeDasharray: '3 3' }}
+                          formatter={(v: any) => formatNumber(Number(v))}
+                        />
+                        <Scatter
+                          name="Predictions"
+                          data={selectedTournamentModel.predictions}
+                          fill="#6366f1"
+                        />
+                      </ScatterChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Hyperparameter Settings */}
+                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 space-y-1.5">
+                  <div className="text-[10px] uppercase font-extrabold text-slate-400">Hyperparameters & Config</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    {Object.entries(selectedTournamentModel.hyperparameters).map(([k, v]) => (
+                      <div key={k} className="bg-white p-2 rounded-xl border border-slate-200/60">
+                        <span className="text-[10px] text-slate-400 block">{k}</span>
+                        <span className="font-bold text-slate-800">{String(v)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* SUB-TAB 2: WHAT-IF SIMULATOR */}
       {/* ---------------------------------------------------- */}
       {activeTab === 'simulator' && model && whatIfPrediction && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -370,172 +722,188 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
                 className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-200 flex items-center gap-1.5 transition"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Reset to Means</span>
+                Reset Baselines
               </button>
             </div>
 
-            {/* Sliders List */}
             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
               {selectedFeatures.map((feat) => {
-                const prof = numCols.find((c) => c.name === feat);
-                const min = prof?.stats?.min ?? 0;
-                const max = prof?.stats?.max ?? 100;
-                const currentVal = sliderValues[feat] ?? prof?.stats?.mean ?? 0;
-                const coeff = model.coefficients[feat] ?? 0;
+                const colProfile = numCols.find((c) => c.name === feat);
+                const min = colProfile?.stats?.min || 0;
+                const max = colProfile?.stats?.max || 100;
+                const mean = colProfile?.stats?.mean || 50;
+                const currentVal = sliderValues[feat] ?? mean;
+                const step = max - min > 1000 ? Math.round((max - min) / 100) : (max - min) / 50 || 1;
+                const coeff = model.coefficients[feat] || 0;
 
                 return (
-                  <div
-                    key={feat}
-                    className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-2"
-                  >
+                  <div key={feat} className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/60 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="font-extrabold text-xs text-slate-800">{feat}</span>
                         <span
-                          className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                          className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md ${
                             coeff >= 0
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-rose-100 text-rose-800'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-rose-50 text-rose-700 border border-rose-200'
                           }`}
                         >
-                          {coeff >= 0 ? '+' : ''}
-                          {coeff.toFixed(3)}x Impact
+                          Coeff: {coeff >= 0 ? '+' : ''}
+                          {coeff.toFixed(2)}
                         </span>
                       </div>
-                      <span className="font-mono font-extrabold text-xs text-indigo-600 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
-                        {formatNumber(currentVal, 2)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={currentVal}
+                          onChange={(e) =>
+                            setSliderValues((prev) => ({
+                              ...prev,
+                              [feat]: parseFloat(e.target.value) || 0,
+                            }))
+                          }
+                          className="w-24 text-right font-mono font-bold text-xs bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-900 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
                     </div>
 
+                    {/* Slider Input */}
                     <input
                       type="range"
                       min={min}
                       max={max}
-                      step={(max - min) / 100 || 1}
+                      step={step}
                       value={currentVal}
                       onChange={(e) =>
                         setSliderValues((prev) => ({
                           ...prev,
-                          [feat]: Number(e.target.value),
+                          [feat]: parseFloat(e.target.value),
                         }))
                       }
                       className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                     />
 
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                      <span>Min: {formatNumber(min, 1)}</span>
-                      <span>Max: {formatNumber(max, 1)}</span>
+                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                      <span>Min: {formatNumber(min)}</span>
+                      <span className="text-slate-500 font-semibold">Baseline: {formatNumber(mean)}</span>
+                      <span>Max: {formatNumber(max)}</span>
                     </div>
                   </div>
                 );
               })}
             </div>
-
-            {/* Save Snapshot Controls */}
-            <div className="pt-4 border-t border-slate-100 flex items-center gap-2">
-              <input
-                type="text"
-                value={scenarioNameInput}
-                onChange={(e) => setScenarioNameInput(e.target.value)}
-                placeholder="Name this scenario (e.g. +15% Marketing, Discount Cut)..."
-                className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500"
-              />
-              <button
-                onClick={handleSaveScenario}
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-2xs shrink-0"
-              >
-                <BookmarkPlus className="w-3.5 h-3.5" />
-                <span>Save Scenario</span>
-              </button>
-            </div>
           </div>
 
-          {/* Right Column: Live Output & Comparative Scenarios */}
+          {/* Right Column: Projected Outcome & 95% Confidence Bounds */}
           <div className="lg:col-span-5 space-y-6">
-            {/* Live Projected Outcome Card */}
-            <div className="bg-gradient-to-tr from-slate-900 via-indigo-950 to-blue-950 text-white rounded-3xl p-6 shadow-md border border-slate-800 space-y-4">
+            <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-white rounded-3xl p-6 border border-indigo-500/30 shadow-lg space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-300">
-                  Live Simulated Outcome
+                <span className="text-[10px] uppercase font-black text-indigo-300 tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  Live Projected Outcome
                 </span>
-                <span
-                  className={`text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
-                    deltaPercent >= 0
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                  }`}
+                <span className="text-xs font-mono text-slate-300 bg-white/10 px-2 py-0.5 rounded-lg border border-white/10">
+                  Target: {targetCol}
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <div className="text-4xl font-black tracking-tight">
+                  {formatNumber(whatIfPrediction.predictedValue)}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-xs font-black px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                      deltaPercent >= 0
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                    }`}
+                  >
+                    {deltaPercent >= 0 ? (
+                      <ArrowUpRight className="w-3 h-3" />
+                    ) : (
+                      <ArrowDownRight className="w-3 h-3" />
+                    )}
+                    {deltaPercent >= 0 ? '+' : ''}
+                    {deltaPercent.toFixed(1)}% vs. Historical Average
+                  </span>
+                </div>
+              </div>
+
+              {/* Confidence Interval (95%) */}
+              <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10 space-y-2 backdrop-blur-md">
+                <div className="flex justify-between text-xs text-indigo-200">
+                  <span className="font-bold">95% Confidence Interval:</span>
+                  <span className="font-mono">
+                    [{formatNumber(whatIfPrediction.confidenceLower)} – {formatNumber(whatIfPrediction.confidenceUpper)}]
+                  </span>
+                </div>
+                <div className="w-full bg-white/20 h-1.5 rounded-full overflow-hidden relative">
+                  <div className="bg-emerald-400 h-full rounded-full w-2/3 mx-auto" />
+                </div>
+              </div>
+
+              {/* Save Scenario Snapshot */}
+              <div className="pt-2 border-t border-white/10 flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Scenario name (e.g. Q3 Growth)..."
+                  value={scenarioNameInput}
+                  onChange={(e) => setScenarioNameInput(e.target.value)}
+                  className="bg-white/10 border border-white/20 text-white placeholder:text-slate-400 text-xs rounded-xl px-3 py-2 flex-1 focus:outline-none focus:border-indigo-400"
+                />
+                <button
+                  onClick={handleSaveScenario}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3 py-2 rounded-xl transition flex items-center gap-1.5 shrink-0 shadow-xs"
                 >
-                  {deltaPercent >= 0 ? (
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  ) : (
-                    <ArrowDownRight className="w-3.5 h-3.5" />
-                  )}
-                  <span>{deltaPercent >= 0 ? '+' : ''}{deltaPercent.toFixed(1)}% vs Baseline</span>
-                </span>
-              </div>
-
-              <div>
-                <div className="text-xs text-slate-400">Projected {targetCol}</div>
-                <div className="text-3xl sm:text-4xl font-extrabold font-mono text-white tracking-tight mt-1">
-                  {formatNumber(whatIfPrediction.predictedValue, 2)}
-                </div>
-              </div>
-
-              {/* Confidence Interval Cone */}
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-xs space-y-1">
-                <div className="text-slate-300 font-medium">90% Confidence Interval Range:</div>
-                <div className="font-mono text-indigo-200 font-bold">
-                  [{formatNumber(whatIfPrediction.lowerBound, 2)} ...{' '}
-                  {formatNumber(whatIfPrediction.upperBound, 2)}]
-                </div>
-                <div className="text-[10px] text-slate-400 mt-1">
-                  Historical Mean Baseline: {formatNumber(targetBaselineMean, 2)}
-                </div>
+                  <BookmarkPlus className="w-3.5 h-3.5" />
+                  Save
+                </button>
               </div>
             </div>
 
             {/* Saved Scenarios Comparison Matrix */}
-            <div className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider">
-                  Scenario Comparison Matrix ({savedScenarios.length})
-                </h4>
-              </div>
-
-              {savedScenarios.length > 0 ? (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
+            {savedScenarios.length > 0 && (
+              <div className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <h4 className="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                    <BookmarkPlus className="w-3.5 h-3.5 text-indigo-600" />
+                    Saved Simulation Scenarios ({savedScenarios.length})
+                  </h4>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
                   {savedScenarios.map((scen) => (
                     <div
                       key={scen.id}
-                      className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs"
+                      className="bg-slate-50 p-3 rounded-xl border border-slate-200/70 flex items-center justify-between text-xs"
                     >
                       <div>
-                        <div className="font-extrabold text-slate-800">{scen.name}</div>
-                        <div className="text-[10px] text-slate-400">{scen.createdAt}</div>
+                        <span className="font-bold text-slate-900 block">{scen.name}</span>
+                        <span className="text-[10px] text-slate-400">{scen.createdAt}</span>
                       </div>
-                      <div className="text-right">
-                        <div className="font-mono font-extrabold text-indigo-600">
-                          {formatNumber(scen.predictedValue, 2)}
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="font-mono font-bold text-slate-900 block">
+                            {formatNumber(scen.predictedValue)}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold ${
+                              scen.deltaFromBaseline >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                            }`}
+                          >
+                            {scen.deltaFromBaseline >= 0 ? '+' : ''}
+                            {scen.deltaFromBaseline.toFixed(1)}%
+                          </span>
                         </div>
-                        <div
-                          className={`text-[10px] font-bold ${
-                            scen.deltaFromBaseline >= 0 ? 'text-emerald-600' : 'text-rose-600'
-                          }`}
-                        >
-                          {scen.deltaFromBaseline >= 0 ? '+' : ''}
-                          {scen.deltaFromBaseline.toFixed(1)}%
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleApplyScenario(scen)}
-                          className="px-2 py-1 bg-white border border-slate-200 hover:bg-indigo-50 text-indigo-600 font-bold rounded-lg text-[11px]"
+                          className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-lg text-[10px] transition"
                         >
-                          Apply
+                          Load
                         </button>
                         <button
                           onClick={() => handleDeleteScenario(scen.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600"
+                          className="text-slate-400 hover:text-rose-600 transition"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -543,315 +911,360 @@ export const PredictiveMLView: React.FC<PredictiveMLViewProps> = ({ dataset }) =
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="py-6 text-center text-slate-400 text-xs">
-                  No scenarios saved yet. Use "Save Scenario" above to compare multiple What-If hypotheses side-by-side.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ---------------------------------------------------- */}
-      {/* SUB-TAB 2: GOAL SEEK (INVERSE OPTIMIZER) */}
-      {/* ---------------------------------------------------- */}
-      {activeTab === 'goalseek' && model && (
-        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-6">
-          <div>
-            <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-              <Target className="w-4 h-4 text-indigo-600" />
-              Goal Seek & Inverse Optimization Engine
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Specify your target desired outcome, choose an adjustable lever, and mathematically solve for the exact required input.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block uppercase tracking-wider">
-                Desired Target Goal for {targetCol}
-              </label>
-              <input
-                type="number"
-                value={goalSeekTargetValue}
-                onChange={(e) => setGoalSeekTargetValue(Number(e.target.value))}
-                className="w-full text-sm font-mono font-bold bg-slate-50 border border-slate-200 rounded-2xl p-3 text-slate-900 focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block uppercase tracking-wider">
-                Adjustable Lever (Independent Variable to Optimize)
-              </label>
-              <select
-                value={goalSeekLeverCol}
-                onChange={(e) => setGoalSeekLeverCol(e.target.value)}
-                className="w-full text-xs font-bold bg-slate-50 border border-slate-200 rounded-2xl p-3 text-slate-900 focus:outline-none focus:border-indigo-500"
-              >
-                {selectedFeatures.map((feat) => (
-                  <option key={feat} value={feat}>
-                    {feat} (Coeff: {model.coefficients[feat]?.toFixed(3) || 0})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <button
-            onClick={handleRunGoalSeek}
-            className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-md shadow-indigo-500/20 transition flex items-center gap-2"
-          >
-            <Compass className="w-4 h-4" />
-            <span>Solve for Required {goalSeekLeverCol}</span>
-          </button>
-
-          {/* Goal Seek Results Card */}
-          {goalSeekResult && (
-            <div className="bg-slate-50 rounded-3xl border border-slate-200/80 p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold uppercase text-slate-500 tracking-wider">
-                  Optimization Calculation Output
-                </span>
-                <span
-                  className={`text-xs font-extrabold px-3 py-1 rounded-full flex items-center gap-1.5 ${
-                    goalSeekResult.isFeasible
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-amber-100 text-amber-800'
-                  }`}
-                >
-                  {goalSeekResult.isFeasible ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  ) : (
-                    <AlertTriangle className="w-4 h-4 text-amber-600" />
-                  )}
-                  <span>
-                    {goalSeekResult.isFeasible
-                      ? 'Feasible Parameter Value'
-                      : 'Outside Historical Range (Extrapolation Alert)'}
-                  </span>
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-                  <span className="text-[11px] text-slate-400 font-bold uppercase block">
-                    Required {goalSeekResult.leverName}
-                  </span>
-                  <span className="text-2xl font-extrabold font-mono text-indigo-600 mt-1 block">
-                    {formatNumber(goalSeekResult.requiredValue, 2)}
-                  </span>
-                </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-                  <span className="text-[11px] text-slate-400 font-bold uppercase block">
-                    Historical Observed Range
-                  </span>
-                  <span className="text-sm font-extrabold font-mono text-slate-800 mt-1.5 block">
-                    [{formatNumber(goalSeekResult.minHistorical, 1)} ...{' '}
-                    {formatNumber(goalSeekResult.maxHistorical, 1)}]
-                  </span>
-                </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-                  <span className="text-[11px] text-slate-400 font-bold uppercase block">
-                    Target Goal
-                  </span>
-                  <span className="text-sm font-extrabold font-mono text-emerald-600 mt-1.5 block">
-                    {targetCol} = {formatNumber(goalSeekTargetValue, 2)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ---------------------------------------------------- */}
-      {/* SUB-TAB 3: MODEL DIAGNOSTICS & FEATURE IMPORTANCE */}
-      {/* ---------------------------------------------------- */}
-      {activeTab === 'automl' && model && (
-        <div className="space-y-6">
-          {/* Diagnostic Metrics Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
-              <span className="text-slate-400 font-bold uppercase text-[10px]">R² (Goodness of Fit)</span>
-              <span className="text-2xl font-extrabold font-mono text-slate-900 mt-1 block">
-                {(model.rSquared * 100).toFixed(1)}%
-              </span>
-              <span className="text-[10px] text-slate-500 mt-1 block">
-                Variance explained by model
-              </span>
-            </div>
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
-              <span className="text-slate-400 font-bold uppercase text-[10px]">RMSE (Root Mean Sq Err)</span>
-              <span className="text-2xl font-extrabold font-mono text-slate-900 mt-1 block">
-                {formatNumber(model.rmse, 2)}
-              </span>
-              <span className="text-[10px] text-slate-500 mt-1 block">
-                Std deviation of residuals
-              </span>
-            </div>
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
-              <span className="text-slate-400 font-bold uppercase text-[10px]">MAE (Mean Abs Err)</span>
-              <span className="text-2xl font-extrabold font-mono text-slate-900 mt-1 block">
-                {formatNumber(model.mae, 2)}
-              </span>
-              <span className="text-[10px] text-slate-500 mt-1 block">
-                Average absolute error
-              </span>
-            </div>
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
-              <span className="text-slate-400 font-bold uppercase text-[10px]">Features in Model</span>
-              <span className="text-2xl font-extrabold font-mono text-indigo-600 mt-1 block">
-                {selectedFeatures.length}
-              </span>
-              <span className="text-[10px] text-slate-500 mt-1 block">
-                Intercept: {formatNumber(model.intercept, 2)}
-              </span>
-            </div>
-          </div>
-
-          {/* Feature Importance Bar Chart */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
-            <h3 className="font-extrabold text-sm text-slate-900">
-              Normalized Feature Importance & Sensitivity Rankings
-            </h3>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={model.featureImportance}
-                  layout="vertical"
-                  margin={{ top: 10, right: 30, left: 80, bottom: 10 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" stroke="#94a3b8" fontSize={11} domain={[0, 1]} />
-                  <YAxis type="category" dataKey="feature" stroke="#64748b" fontSize={11} />
-                  <Tooltip />
-                  <Bar dataKey="importance" fill="#4f46e5" radius={[0, 6, 6, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ---------------------------------------------------- */}
-      {/* SUB-TAB 4: TIME-SERIES FORECASTING */}
-      {/* ---------------------------------------------------- */}
-      {activeTab === 'forecasting' && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-              <div>
-                <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-indigo-600" />
-                  Time-Series Holt-Winters Linear Projection Engine
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Extrapolate historical chronological trajectories into future periods with uncertainty cones
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-700">Horizon:</span>
-                <select
-                  value={forecastHorizon}
-                  onChange={(e) => setForecastHorizon(Number(e.target.value))}
-                  className="text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5"
-                >
-                  <option value={3}>Next 3 Periods</option>
-                  <option value={6}>Next 6 Periods</option>
-                  <option value={12}>Next 12 Periods</option>
-                </select>
-              </div>
-            </div>
-
-            {forecastResult ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
-                    <span className="text-slate-400 font-bold uppercase text-[10px]">
-                      Historical Average
-                    </span>
-                    <span className="text-lg font-extrabold font-mono text-slate-900 mt-1 block">
-                      {formatNumber(forecastResult.summary.historicalAverage, 2)}
-                    </span>
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
-                    <span className="text-slate-400 font-bold uppercase text-[10px]">
-                      Projected Forecast Average
-                    </span>
-                    <span className="text-lg font-extrabold font-mono text-indigo-600 mt-1 block">
-                      {formatNumber(forecastResult.summary.forecastAverage, 2)}
-                    </span>
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
-                    <span className="text-slate-400 font-bold uppercase text-[10px]">
-                      Projected Growth Trajectory
-                    </span>
-                    <span
-                      className={`text-lg font-extrabold font-mono mt-1 block ${
-                        forecastResult.growthRatePercent >= 0 ? 'text-emerald-600' : 'text-rose-600'
-                      }`}
-                    >
-                      {forecastResult.growthRatePercent >= 0 ? '+' : ''}
-                      {forecastResult.growthRatePercent}%
-                    </span>
-                  </div>
-                </div>
-
-                <div className="h-80 w-full pt-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={forecastResult.historyAndForecast}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                      <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
-                      <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(v) => formatNumber(v, 0)} />
-                      <Tooltip />
-                      <Legend />
-                      <Area
-                        type="monotone"
-                        dataKey="confidenceUpper"
-                        stroke="none"
-                        fill="#cbd5e1"
-                        fillOpacity={0.4}
-                        name="90% Upper Bound"
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="confidenceLower"
-                        stroke="none"
-                        fill="#ffffff"
-                        fillOpacity={1}
-                        name="90% Lower Bound"
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="actual"
-                        stroke="#0f172a"
-                        strokeWidth={3}
-                        name="Observed Actual"
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="forecast"
-                        stroke="#4f46e5"
-                        strokeWidth={3}
-                        strokeDasharray="4 4"
-                        name="Projected Forecast"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            ) : (
-              <div className="py-12 text-center text-slate-400 text-xs">
-                No date column identified for temporal forecasting.
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* SUB-TAB 3: INVERSE GOAL SEEK OPTIMIZER */}
+      {/* ---------------------------------------------------- */}
+      {activeTab === 'goalseek' && model && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-6 bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                  <Target className="w-4 h-4 text-indigo-600" />
+                  Inverse Goal Seek Formulation
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Set a desired business target and calculate the exact required input lever
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-extrabold text-slate-700 block mb-1.5">
+                  1. Desired Target Outcome for <span className="text-indigo-600 font-mono">[{targetCol}]</span>
+                </label>
+                <input
+                  type="number"
+                  value={goalSeekTargetValue}
+                  onChange={(e) => setGoalSeekTargetValue(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 font-mono font-bold text-sm focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-extrabold text-slate-700 block mb-1.5">
+                  2. Select Adjustable Lever Feature
+                </label>
+                <select
+                  value={goalSeekLeverCol}
+                  onChange={(e) => setGoalSeekLeverCol(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 font-bold text-xs focus:outline-none focus:border-indigo-500"
+                >
+                  {selectedFeatures.map((f) => (
+                    <option key={f} value={f}>
+                      {f} (Coeff: {model.coefficients[f]?.toFixed(2) || '0.00'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={handleRunGoalSeek}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-2xl transition shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2"
+              >
+                <Zap className="w-4 h-4" />
+                Calculate Required Lever Value
+              </button>
+            </div>
+          </div>
+
+          {/* Goal Seek Outcome Card */}
+          <div className="lg:col-span-6">
+            {goalSeekResult ? (
+              <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <span className="text-xs font-extrabold text-slate-700">Optimization Result</span>
+                  <span
+                    className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full flex items-center gap-1 ${
+                      goalSeekResult.isFeasible
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-amber-50 text-amber-700 border border-amber-200'
+                    }`}
+                  >
+                    {goalSeekResult.isFeasible ? (
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    ) : (
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                    )}
+                    {goalSeekResult.isFeasible ? 'Feasible Target' : 'Out-of-Range Risk'}
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-xs text-slate-500 font-semibold">
+                    To achieve {targetCol} = {formatNumber(goalSeekTargetValue)}, you must set:
+                  </div>
+                  <div className="text-3xl font-black text-indigo-600 font-mono">
+                    {goalSeekResult.leverName} = {formatNumber(goalSeekResult.requiredValue)}
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2 text-xs">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Historical Minimum:</span>
+                    <span className="font-mono font-bold">{formatNumber(goalSeekResult.minHistorical)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Historical Maximum:</span>
+                    <span className="font-mono font-bold">{formatNumber(goalSeekResult.maxHistorical)}</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setSliderValues((prev) => ({
+                      ...prev,
+                      [goalSeekResult.leverName]: goalSeekResult.requiredValue,
+                    }));
+                    setActiveTab('simulator');
+                  }}
+                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
+                >
+                  <Sliders className="w-3.5 h-3.5" />
+                  Load into What-If Simulator
+                </button>
+              </div>
+            ) : (
+              <div className="bg-slate-50 rounded-3xl border border-dashed border-slate-200 p-8 text-center text-slate-400 space-y-2">
+                <Target className="w-8 h-8 mx-auto text-slate-300" />
+                <p className="text-xs font-bold text-slate-600">No Goal Seek Calculation Yet</p>
+                <p className="text-[11px]">Click "Calculate Required Lever Value" to solve.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* SUB-TAB 4: KEY DRIVERS & SHAPLEY DECOMPOSITION */}
+      {/* ---------------------------------------------------- */}
+      {activeTab === 'drivers' && tournamentResult && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-indigo-600" />
+                  Key Driver Shapley Decomposition & Elasticity
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Percentage variance contribution and sensitivity elasticity for {targetCol}
+                </p>
+              </div>
+            </div>
+
+            {/* Drivers Chart */}
+            <div className="h-60 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={tournamentResult.keyDrivers}
+                  layout="vertical"
+                  margin={{ top: 10, right: 30, left: 80, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" unit="%" tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                  <YAxis
+                    type="category"
+                    dataKey="feature"
+                    tick={{ fontSize: 11, fontWeight: 700 }}
+                    stroke="#64748b"
+                  />
+                  <Tooltip formatter={(v: any) => `${v}% Shapley Share`} />
+                  <Bar dataKey="shapleyPercent" radius={[0, 8, 8, 0]}>
+                    {tournamentResult.keyDrivers.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.impactDirection === 'positive' ? '#4f46e5' : '#e11d48'}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Driver Breakdown Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+              {tournamentResult.keyDrivers.map((kd) => (
+                <div key={kd.feature} className="bg-slate-50 p-4 rounded-2xl border border-slate-200/70 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-xs text-slate-900">{kd.feature}</span>
+                    <span
+                      className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                        kd.impactDirection === 'positive'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-rose-50 text-rose-700 border border-rose-200'
+                      }`}
+                    >
+                      {kd.shapleyPercent}% Impact
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">{kd.interpretation}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* SUB-TAB 5: DECISION TREE CART VISUALIZER */}
+      {/* ---------------------------------------------------- */}
+      {activeTab === 'tree' && tournamentResult?.decisionTreeRoot && (
+        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-6">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                <GitBranch className="w-4 h-4 text-indigo-600" />
+                Interactive CART Decision Tree Graph
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Recursive splitting logic based on Mean Squared Error (MSE) minimization
+              </p>
+            </div>
+            <span className="text-xs font-mono font-bold bg-slate-100 text-slate-700 px-3 py-1 rounded-xl">
+              Target: {targetCol}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto py-4 flex justify-center">
+            {renderTreeNode(tournamentResult.decisionTreeRoot)}
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* SUB-TAB 6: TIME SERIES FORECASTING */}
+      {/* ---------------------------------------------------- */}
+      {activeTab === 'forecasting' && (
+        <div className="space-y-6">
+          {dateCols.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-slate-200/80 p-8 text-center space-y-2">
+              <Calendar className="w-10 h-10 text-slate-300 mx-auto" />
+              <h3 className="font-extrabold text-sm text-slate-800">No Date Column Detected</h3>
+              <p className="text-xs text-slate-500">
+                Time-series forecasting requires at least one date or timestamp column.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Forecast Controls */}
+              <div className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-600">Date Dimension:</span>
+                    <select
+                      value={forecastDateCol}
+                      onChange={(e) => setForecastDateCol(e.target.value)}
+                      className="text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
+                    >
+                      {dateCols.map((c) => (
+                        <option key={c.name} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-600">Value Metric:</span>
+                    <select
+                      value={forecastValCol}
+                      onChange={(e) => setForecastValCol(e.target.value)}
+                      className="text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
+                    >
+                      {numCols.map((c) => (
+                        <option key={c.name} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-600">Horizon:</span>
+                    <select
+                      value={forecastHorizon}
+                      onChange={(e) => setForecastHorizon(parseInt(e.target.value))}
+                      className="text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900"
+                    >
+                      <option value={3}>3 Periods</option>
+                      <option value={6}>6 Periods</option>
+                      <option value={12}>12 Periods</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {forecastResult && (
+                <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div>
+                      <h3 className="font-extrabold text-sm text-slate-900">
+                        Historical Trend & Future Projections
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Linear trend projection with 95% confidence cone
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="h-72 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={forecastResult.historyAndForecast}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                        <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                        <Tooltip formatter={(v: any) => formatNumber(Number(v))} />
+                        <Legend />
+                        <Area
+                          type="monotone"
+                          dataKey="actual"
+                          stroke="#4f46e5"
+                          fill="#4f46e5"
+                          fillOpacity={0.1}
+                          strokeWidth={2.5}
+                          name="Historical Actuals"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="forecast"
+                          stroke="#10b981"
+                          strokeDasharray="5 5"
+                          fill="#10b981"
+                          fillOpacity={0.1}
+                          strokeWidth={2.5}
+                          name="Projected Forecast"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="confidenceUpper"
+                          stroke="transparent"
+                          fill="#10b981"
+                          fillOpacity={0.05}
+                          name="Upper Bound"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="confidenceLower"
+                          stroke="transparent"
+                          fill="#10b981"
+                          fillOpacity={0.05}
+                          name="Lower Bound"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
