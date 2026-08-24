@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Navbar } from './components/Navbar';
 import { UploadDropzone } from './components/UploadDropzone';
 import { DatasetOverviewCard } from './components/DatasetOverviewCard';
@@ -18,7 +19,7 @@ import { AnomalyDetectionView } from './components/AnomalyDetectionView';
 import { CohortAnalysisView } from './components/CohortAnalysisView';
 import { CodeNotebookStudioView } from './components/CodeNotebookStudioView';
 import { DatasetState, CleaningPipelineConfig } from './types/dataset';
-import { X, Upload } from 'lucide-react';
+import { X, Upload, Sparkles, Loader2 } from 'lucide-react';
 
 export function App() {
   const [dataset, setDataset] = useState<DatasetState | null>(null);
@@ -240,65 +241,76 @@ export function App() {
               onOpenCleaningModal={() => setCurrentTab('quality')}
             />
 
-            {/* Active Tab View */}
+            {/* Active Tab View with Motion Animation */}
             <div className="pt-2">
-              {currentTab === 'dashboard' && (
-                <DashboardView
-                  dataset={dataset}
-                  onNavigateToTab={(tab) => setCurrentTab(tab)}
-                />
-              )}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentTab}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                  className="gpu-accelerated"
+                >
+                  {currentTab === 'dashboard' && (
+                    <DashboardView
+                      dataset={dataset}
+                      onNavigateToTab={(tab) => setCurrentTab(tab)}
+                    />
+                  )}
 
-              {currentTab === 'ml' && <PredictiveMLView dataset={dataset} />}
+                  {currentTab === 'ml' && <PredictiveMLView dataset={dataset} />}
 
-              {currentTab === 'blending' && (
-                <DataBlendingView
-                  dataset={dataset}
-                  onApplyMergedDataset={handleApplyMergedDataset}
-                />
-              )}
+                  {currentTab === 'blending' && (
+                    <DataBlendingView
+                      dataset={dataset}
+                      onApplyMergedDataset={handleApplyMergedDataset}
+                    />
+                  )}
 
-              {currentTab === 'clustering' && <ClusteringSegmentationView dataset={dataset} />}
+                  {currentTab === 'clustering' && <ClusteringSegmentationView dataset={dataset} />}
 
-              {currentTab === 'anomalies' && <AnomalyDetectionView dataset={dataset} />}
+                  {currentTab === 'anomalies' && <AnomalyDetectionView dataset={dataset} />}
 
-              {currentTab === 'cohorts' && <CohortAnalysisView dataset={dataset} />}
+                  {currentTab === 'cohorts' && <CohortAnalysisView dataset={dataset} />}
 
-              {currentTab === 'sql' && <SQLStudioView dataset={dataset} />}
+                  {currentTab === 'sql' && <SQLStudioView dataset={dataset} />}
 
-              {currentTab === 'pivot' && <PivotTableView dataset={dataset} />}
+                  {currentTab === 'pivot' && <PivotTableView dataset={dataset} />}
 
-              {currentTab === 'notebook' && <CodeNotebookStudioView dataset={dataset} />}
+                  {currentTab === 'notebook' && <CodeNotebookStudioView dataset={dataset} />}
 
-              {currentTab === 'quality' && (
-                <DataQualityView
-                  dataset={dataset}
-                  onApplyCleaning={handleApplyCleaning}
-                  isCleaning={isCleaning}
-                />
-              )}
+                  {currentTab === 'quality' && (
+                    <DataQualityView
+                      dataset={dataset}
+                      onApplyCleaning={handleApplyCleaning}
+                      isCleaning={isCleaning}
+                    />
+                  )}
 
-              {currentTab === 'eda' && <EDAView dataset={dataset} />}
+                  {currentTab === 'eda' && <EDAView dataset={dataset} />}
 
-              {currentTab === 'studio' && <VisualizerView dataset={dataset} />}
+                  {currentTab === 'studio' && <VisualizerView dataset={dataset} />}
 
-              {currentTab === 'chat' && <AIChatView dataset={dataset} />}
+                  {currentTab === 'chat' && <AIChatView dataset={dataset} />}
 
-              {currentTab === 'report' && (
-                <ReportView
-                  dataset={dataset}
-                  onRefreshReport={handleRefreshReport}
-                  isGeneratingReport={isGeneratingReport}
-                />
-              )}
+                  {currentTab === 'report' && (
+                    <ReportView
+                      dataset={dataset}
+                      onRefreshReport={handleRefreshReport}
+                      isGeneratingReport={isGeneratingReport}
+                    />
+                  )}
 
-              {currentTab === 'data' && (
-                <DataTableView
-                  dataset={dataset}
-                  onAddColumn={handleAddColumn}
-                  onUpdateRow={handleUpdateRow}
-                />
-              )}
+                  {currentTab === 'data' && (
+                    <DataTableView
+                      dataset={dataset}
+                      onAddColumn={handleAddColumn}
+                      onUpdateRow={handleUpdateRow}
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </>
         )}
@@ -322,6 +334,17 @@ export function App() {
               processingStep={processingStep}
               error={error}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Floating Processing Indicator if processing in background */}
+      {isProcessing && dataset && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900/95 text-white border border-slate-700/80 px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
+          <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+          <div className="text-xs">
+            <div className="font-extrabold text-slate-100">Processing Analytics</div>
+            <div className="text-[11px] text-slate-400">{processingStep || 'Computing real-time model inferences...'}</div>
           </div>
         </div>
       )}
