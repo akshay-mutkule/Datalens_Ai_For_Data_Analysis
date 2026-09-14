@@ -4,6 +4,9 @@ import { Navbar } from './components/Navbar';
 import { UploadDropzone } from './components/UploadDropzone';
 import { DatasetOverviewCard } from './components/DatasetOverviewCard';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
+import { AICopilotDrawer } from './components/AICopilotDrawer';
+import { SecurityComplianceModal } from './components/SecurityComplianceModal';
+import { LiveStreamBar } from './components/LiveStreamBar';
 import { DashboardView } from './components/DashboardView';
 import { DataQualityView } from './components/DataQualityView';
 import { EDAView } from './components/EDAView';
@@ -20,6 +23,7 @@ import { AnomalyDetectionView } from './components/AnomalyDetectionView';
 import { CohortAnalysisView } from './components/CohortAnalysisView';
 import { CodeNotebookStudioView } from './components/CodeNotebookStudioView';
 import { DatasetState, CleaningPipelineConfig } from './types/dataset';
+import { useTheme } from './context/ThemeContext';
 import {
   X,
   Upload,
@@ -36,6 +40,7 @@ import {
 } from 'lucide-react';
 
 export function App() {
+  const { isDark, toggleTheme } = useTheme();
   const [dataset, setDataset] = useState<DatasetState | null>(null);
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -43,6 +48,8 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
+  const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(false);
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState<boolean>(false);
   const [isCleaning, setIsCleaning] = useState<boolean>(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState<boolean>(false);
 
@@ -51,17 +58,23 @@ export function App() {
     handleLoadSample('sales_analytics');
   }, []);
 
-  // Global Ctrl+K / Cmd+K keyboard shortcut
+  // Global Ctrl+K / Cmd+K and Cmd+J / Cmd+D keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        setIsCopilotOpen((prev) => !prev);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        toggleTheme();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [toggleTheme]);
 
   const handleFileUpload = async (file: File) => {
     setIsProcessing(true);
@@ -252,10 +265,37 @@ export function App() {
     }
   };
 
+  const handleNewStreamRow = (newRow: Record<string, any>) => {
+    if (!dataset) return;
+    const updatedRows = [newRow, ...dataset.cleanedRows];
+    setDataset((prev) =>
+      prev
+        ? {
+            ...prev,
+            cleanedRows: updatedRows,
+            profile: {
+              ...prev.profile,
+              totalRows: prev.profile.totalRows + 1,
+            },
+          }
+        : null
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-slate-100/60 text-slate-900 flex flex-col font-sans antialiased relative selection:bg-blue-600 selection:text-white">
+    <div
+      className={`min-h-screen flex flex-col font-sans antialiased relative selection:bg-blue-600 selection:text-white transition-colors duration-200 ${
+        isDark ? 'bg-[#080d1a] text-slate-100' : 'bg-slate-100/70 text-slate-900'
+      }`}
+    >
       {/* Ambient background styling */}
-      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50/60 via-slate-50/20 to-transparent -z-10" />
+      <div
+        className={`fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] -z-10 ${
+          isDark
+            ? 'from-blue-950/20 via-slate-950/60 to-transparent'
+            : 'from-blue-50/60 via-slate-50/20 to-transparent'
+        }`}
+      />
 
       {/* Top Application Navbar */}
       <Navbar
@@ -268,8 +308,15 @@ export function App() {
         onDownloadExcel={handleDownloadExcel}
         onDownloadPDF={() => setCurrentTab('report')}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenCopilot={() => setIsCopilotOpen(true)}
+        onOpenSecurity={() => setIsSecurityModalOpen(true)}
         isProcessing={isProcessing}
       />
+
+      {/* Live Stream Ingestion Bar */}
+      {dataset && (
+        <LiveStreamBar dataset={dataset} onNewStreamRow={handleNewStreamRow} />
+      )}
 
       {/* Real-Time Telemetry & Status Bar */}
       {dataset && (
@@ -291,6 +338,20 @@ export function App() {
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
+              <button
+                onClick={() => setIsSecurityModalOpen(true)}
+                className="hover:text-emerald-400 transition flex items-center gap-1 font-bold text-emerald-400/90"
+              >
+                <ShieldCheck className="w-3 h-3 text-emerald-400" /> Sentinel (SOC 2)
+              </button>
+              <span className="text-slate-600">•</span>
+              <button
+                onClick={() => setIsCopilotOpen(true)}
+                className="hover:text-indigo-400 transition flex items-center gap-1 font-bold text-indigo-300"
+              >
+                <Sparkles className="w-3 h-3 text-indigo-400" /> Copilot (⌘J)
+              </button>
+              <span className="text-slate-600">•</span>
               <button
                 onClick={() => setCurrentTab('sql')}
                 className="hover:text-blue-400 transition flex items-center gap-1 font-bold"
@@ -421,15 +482,50 @@ export function App() {
         onDownloadExcel={handleDownloadExcel}
         onDownloadPDF={() => setCurrentTab('report')}
         onOpenUpload={() => setShowUploadModal(true)}
+        onOpenCopilot={() => setIsCopilotOpen(true)}
+        onOpenSecurity={() => setIsSecurityModalOpen(true)}
+        onToggleTheme={toggleTheme}
       />
+
+      {/* AI Copilot Drawer */}
+      <AICopilotDrawer
+        isOpen={isCopilotOpen}
+        onClose={() => setIsCopilotOpen(false)}
+        dataset={dataset}
+        activeTab={currentTab}
+        onNavigateTab={(tab) => {
+          setCurrentTab(tab);
+          setIsCopilotOpen(false);
+        }}
+      />
+
+      {/* Security & Compliance Sentinel Modal */}
+      <SecurityComplianceModal
+        isOpen={isSecurityModalOpen}
+        onClose={() => setIsSecurityModalOpen(false)}
+        dataset={dataset}
+      />
+
+      {/* Floating AI Copilot Trigger */}
+      {dataset && (
+        <button
+          onClick={() => setIsCopilotOpen(true)}
+          className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white px-3.5 py-2.5 rounded-2xl shadow-xl shadow-indigo-600/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 text-xs font-bold ring-2 ring-white/20 group"
+          title="Open AI Intelligence Copilot (⌘J)"
+        >
+          <Sparkles className="w-4 h-4 text-amber-300 group-hover:rotate-12 transition-transform" />
+          <span>Copilot</span>
+          <kbd className="text-[10px] font-mono px-1 py-0.2 bg-white/20 rounded text-white/90">⌘J</kbd>
+        </button>
+      )}
 
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+          <div className={`${isDark ? 'bg-slate-900 border border-slate-800 text-slate-100' : 'bg-white text-slate-900'} rounded-3xl max-w-3xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto`}>
             <button
               onClick={() => setShowUploadModal(false)}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition"
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-200 rounded-full hover:bg-slate-800 transition"
             >
               <X className="w-5 h-5" />
             </button>
@@ -447,7 +543,7 @@ export function App() {
 
       {/* Floating Processing Indicator */}
       {isProcessing && dataset && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900/95 text-white border border-slate-700/80 px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
+        <div className="fixed bottom-20 right-6 z-50 bg-slate-900/95 text-white border border-slate-700/80 px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
           <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
           <div className="text-xs">
             <div className="font-extrabold text-slate-100">Processing Analytics</div>
@@ -457,7 +553,13 @@ export function App() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-4 mt-12 text-center text-xs text-slate-400">
+      <footer
+        className={`border-t py-4 mt-12 text-center text-xs transition-colors ${
+          isDark
+            ? 'border-slate-800/80 bg-slate-950/80 text-slate-500'
+            : 'border-slate-200 bg-white text-slate-400'
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>DataLens AI • Autonomous Enterprise Analytics & Data Science Platform</span>
           <span>Powered by Gemini 3.7 Flash & Express High-Performance Engine</span>

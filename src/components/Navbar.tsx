@@ -25,9 +25,13 @@ import {
   Search,
   SlidersHorizontal,
   Cpu,
+  Sun,
+  Moon,
+  Lock,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
+import { useTheme } from '../context/ThemeContext';
 
 interface NavbarProps {
   currentTab: string;
@@ -39,6 +43,8 @@ interface NavbarProps {
   onDownloadExcel: () => void;
   onDownloadPDF: () => void;
   onOpenCommandPalette: () => void;
+  onOpenCopilot?: () => void;
+  onOpenSecurity?: () => void;
   isProcessing?: boolean;
 }
 
@@ -52,8 +58,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   onDownloadExcel,
   onDownloadPDF,
   onOpenCommandPalette,
+  onOpenCopilot,
+  onOpenSecurity,
   isProcessing = false,
 }) => {
+  const { isDark, toggleTheme } = useTheme();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [activeCategory, setActiveCategory] = useState<'all' | 'exec' | 'ml' | 'bi' | 'dev'>('all');
@@ -258,6 +267,54 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </div>
             )}
+
+            {/* Security & PII Compliance Sentinel Button */}
+            {dataset && (
+              <button
+                onClick={onOpenSecurity}
+                className="hidden sm:flex items-center gap-1 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-emerald-300 border border-slate-700/80 px-2.5 py-1.5 rounded-xl transition shadow-2xs group"
+                title="Security & PII Governance Sentinel"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  SOC 2
+                </span>
+              </button>
+            )}
+
+            {/* AI Copilot Drawer Trigger Button */}
+            {dataset && (
+              <button
+                onClick={onOpenCopilot}
+                className="flex items-center gap-1.5 text-xs font-bold bg-indigo-950/80 hover:bg-indigo-900/90 text-indigo-200 border border-indigo-500/40 px-3 py-1.5 rounded-xl transition shadow-md shadow-indigo-500/15 group"
+                title="Open AI Analyst Copilot (⌘J)"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400 group-hover:rotate-12 transition-transform" />
+                <span className="hidden sm:inline">Copilot</span>
+                <kbd className="hidden lg:inline px-1 py-0.2 text-[9px] font-mono rounded bg-indigo-900/60 border border-indigo-700/60 text-indigo-300">
+                  ⌘J
+                </kbd>
+              </button>
+            )}
+
+            {/* Theme Toggle (Dark / Light) */}
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-amber-400 transition flex items-center gap-1.5 shadow-2xs"
+              title={isDark ? 'Switch to Executive Light Mode' : 'Switch to Obsidian Dark Mode'}
+            >
+              {isDark ? (
+                <>
+                  <Sun className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="text-[11px] font-bold hidden xl:inline text-slate-300">Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="text-[11px] font-bold hidden xl:inline text-slate-300">Dark</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 

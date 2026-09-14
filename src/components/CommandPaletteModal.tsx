@@ -40,6 +40,9 @@ interface CommandPaletteModalProps {
   onDownloadExcel: () => void;
   onDownloadPDF: () => void;
   onOpenUpload: () => void;
+  onOpenCopilot?: () => void;
+  onOpenSecurity?: () => void;
+  onToggleTheme?: () => void;
 }
 
 interface CommandItem {
@@ -62,6 +65,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onDownloadExcel,
   onDownloadPDF,
   onOpenUpload,
+  onOpenCopilot,
+  onOpenSecurity,
+  onToggleTheme,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -141,6 +147,51 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       });
     }
 
+    if (onOpenCopilot) {
+      items.push({
+        id: 'action_copilot',
+        category: 'Quick Actions',
+        title: 'Launch AI Analyst Copilot',
+        subtitle: 'Ask natural language statistical and data questions (⌘J)',
+        icon: Sparkles,
+        badge: 'AI Copilot',
+        action: () => {
+          onOpenCopilot();
+          onClose();
+        },
+      });
+    }
+
+    if (onOpenSecurity) {
+      items.push({
+        id: 'action_security',
+        category: 'Quick Actions',
+        title: 'Run Security, PII & Governance Audit',
+        subtitle: 'Scan for personal identifiers, SSN, emails, and compliance flags',
+        icon: ShieldCheck,
+        badge: 'SOC 2',
+        action: () => {
+          onOpenSecurity();
+          onClose();
+        },
+      });
+    }
+
+    if (onToggleTheme) {
+      items.push({
+        id: 'action_theme',
+        category: 'Quick Actions',
+        title: 'Toggle Workspace Theme (Dark / Light)',
+        subtitle: 'Switch between Obsidian Enterprise Dark and Clean Executive Light',
+        icon: Zap,
+        badge: 'Theme',
+        action: () => {
+          onToggleTheme();
+          onClose();
+        },
+      });
+    }
+
     // 3. Quick Actions
     items.push({
       id: 'action_upload',
@@ -212,7 +263,19 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     });
 
     return items;
-  }, [dataset, onNavigateTab, onLoadSample, onDownloadCSV, onDownloadExcel, onDownloadPDF, onOpenUpload, onClose]);
+  }, [
+    dataset,
+    onNavigateTab,
+    onLoadSample,
+    onDownloadCSV,
+    onDownloadExcel,
+    onDownloadPDF,
+    onOpenUpload,
+    onOpenCopilot,
+    onOpenSecurity,
+    onToggleTheme,
+    onClose,
+  ]);
 
   // Filter commands by query
   const filteredCommands = useMemo(() => {
