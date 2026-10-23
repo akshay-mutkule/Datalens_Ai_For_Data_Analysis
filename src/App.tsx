@@ -22,6 +22,10 @@ import { ClusteringSegmentationView } from './components/ClusteringSegmentationV
 import { AnomalyDetectionView } from './components/AnomalyDetectionView';
 import { CohortAnalysisView } from './components/CohortAnalysisView';
 import { CodeNotebookStudioView } from './components/CodeNotebookStudioView';
+import { ScenarioSimulationView } from './components/ScenarioSimulationView';
+import { RootCauseAnalysisView } from './components/RootCauseAnalysisView';
+import { DataLineageDAGView } from './components/DataLineageDAGView';
+import { FeatureEngineeringView } from './components/FeatureEngineeringView';
 import { DatasetState, CleaningPipelineConfig } from './types/dataset';
 import { useTheme } from './context/ThemeContext';
 import {
@@ -37,6 +41,8 @@ import {
   ShieldCheck,
   Brain,
   Layers,
+  Sliders,
+  GitFork,
 } from 'lucide-react';
 
 export function App() {
@@ -353,24 +359,31 @@ export function App() {
               </button>
               <span className="text-slate-600">•</span>
               <button
-                onClick={() => setCurrentTab('sql')}
-                className="hover:text-blue-400 transition flex items-center gap-1 font-bold"
+                onClick={() => setCurrentTab('simulation')}
+                className="hover:text-purple-400 transition flex items-center gap-1 font-bold text-purple-300"
               >
-                <Terminal className="w-3 h-3 text-blue-400" /> SQL Console
+                <Sliders className="w-3 h-3 text-purple-400" /> What-If Lab
+              </button>
+              <span className="text-slate-600">•</span>
+              <button
+                onClick={() => setCurrentTab('pipeline')}
+                className="hover:text-blue-400 transition flex items-center gap-1 font-bold text-blue-300"
+              >
+                <GitFork className="w-3 h-3 text-blue-400" /> Pipeline DAG
               </button>
               <span className="text-slate-600">•</span>
               <button
                 onClick={() => setCurrentTab('ml')}
                 className="hover:text-indigo-400 transition flex items-center gap-1 font-bold"
               >
-                <Brain className="w-3 h-3 text-indigo-400" /> AutoML Studio
+                <Brain className="w-3 h-3 text-indigo-400" /> AutoML
               </button>
               <span className="text-slate-600">•</span>
               <button
                 onClick={() => setIsCommandPaletteOpen(true)}
                 className="hover:text-amber-400 transition flex items-center gap-1 font-bold"
               >
-                <Sparkles className="w-3 h-3 text-amber-400" /> Quick Jump (⌘K)
+                <Sparkles className="w-3 h-3 text-amber-400" /> ⌘K
               </button>
             </div>
           </div>
@@ -413,6 +426,20 @@ export function App() {
                       onNavigateToTab={(tab) => setCurrentTab(tab)}
                     />
                   )}
+
+                  {currentTab === 'simulation' && <ScenarioSimulationView dataset={dataset} />}
+
+                  {currentTab === 'rca' && <RootCauseAnalysisView dataset={dataset} />}
+
+                  {currentTab === 'features' && (
+                    <FeatureEngineeringView
+                      dataset={dataset}
+                      onAddColumn={handleAddColumn}
+                      onNavigateToTab={(tab) => setCurrentTab(tab)}
+                    />
+                  )}
+
+                  {currentTab === 'pipeline' && <DataLineageDAGView dataset={dataset} />}
 
                   {currentTab === 'ml' && <PredictiveMLView dataset={dataset} />}
 

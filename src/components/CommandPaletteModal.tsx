@@ -26,6 +26,10 @@ import {
   Layers,
   Zap,
   CornerDownLeft,
+  Sliders,
+  Compass,
+  GitFork,
+  Wand2,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
@@ -89,6 +93,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     // 1. Navigation Views
     const views = [
       { id: 'dashboard', title: 'Executive KPI Dashboard', subtitle: 'High-level business metrics, KPIs, and trend charts', icon: BarChart3, badge: 'Overview' },
+      { id: 'simulation', title: 'What-If Scenario Simulation Lab', subtitle: 'Stress price elasticity, volume, and simulate 1,000 Monte Carlo paths', icon: Sliders, badge: 'Simulation' },
+      { id: 'rca', title: 'Automated Root Cause & Driver Decomposition', subtitle: 'Waterfall attribution of positive lifts vs negative drags', icon: Compass, badge: 'Attribution' },
+      { id: 'features', title: 'Feature Store & Formula Studio', subtitle: 'Synthesize log transforms, z-scores, ratios, and quantile bins', icon: Wand2, badge: 'Feature Store' },
+      { id: 'pipeline', title: 'Data Pipeline & Lineage DAG Studio', subtitle: 'Inspect end-to-end provenance, latency telemetry, and column tracing', icon: GitFork, badge: 'Lineage' },
       { id: 'ml', title: 'Predictive AutoML & Decision Trees', subtitle: 'Train regression models, random forest, and explore decision trees', icon: Brain, badge: 'ML Engine' },
       { id: 'blending', title: 'Data Blending & Schema Fusion', subtitle: 'Join primary data with external demographics or custom lookup tables', icon: GitMerge, badge: 'Fusion' },
       { id: 'clustering', title: 'K-Means Clustering & PCA 2D/3D', subtitle: 'Unsupervised segmentation, silhouette scoring, and principal components', icon: Users, badge: 'Unsupervised' },

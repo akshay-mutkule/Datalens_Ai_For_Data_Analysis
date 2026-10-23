@@ -157,6 +157,30 @@ export const AICopilotDrawer: React.FC<AICopilotDrawerProps> = ({
           'Which cohort had the highest lifetime value?',
           'How to improve retention curve trajectory?',
         ];
+      case 'simulation':
+        return [
+          'What is the downside risk at P10 under recession shock?',
+          'Which lever provides the highest profit sensitivity swing?',
+          'Simulate aggressive expansion with 2x marketing scale',
+        ];
+      case 'rca':
+        return [
+          'What drove the largest variance in our primary metric?',
+          'Decompose the top 3 drag factors and recommended fixes',
+          'Explain the positive lift in the leading segment',
+        ];
+      case 'pipeline':
+        return [
+          'Audit pipeline bottlenecks and stage latency',
+          'Trace column lineage from source to AutoML',
+          'Verify SOC 2 compliance in governance stage',
+        ];
+      case 'features':
+        return [
+          'Which skewed columns would benefit most from Log1p?',
+          'Suggest high-signal interaction ratios for predictive ML',
+          'How does Z-score scaling improve gradient descent convergence?',
+        ];
       default:
         return [
           'What is the most profitable category?',
