@@ -26,6 +26,9 @@ import { ScenarioSimulationView } from './components/ScenarioSimulationView';
 import { RootCauseAnalysisView } from './components/RootCauseAnalysisView';
 import { DataLineageDAGView } from './components/DataLineageDAGView';
 import { FeatureEngineeringView } from './components/FeatureEngineeringView';
+import { CausalInferenceView } from './components/CausalInferenceView';
+import { AutonomousAgentSwarmView } from './components/AutonomousAgentSwarmView';
+import { AutomatedAlertsView } from './components/AutomatedAlertsView';
 import { DatasetState, CleaningPipelineConfig } from './types/dataset';
 import { useTheme } from './context/ThemeContext';
 import {
@@ -43,6 +46,8 @@ import {
   Layers,
   Sliders,
   GitFork,
+  Bot,
+  Scale,
 } from 'lucide-react';
 
 export function App() {
@@ -359,6 +364,20 @@ export function App() {
               </button>
               <span className="text-slate-600">•</span>
               <button
+                onClick={() => setCurrentTab('swarm')}
+                className="hover:text-indigo-400 transition flex items-center gap-1 font-bold text-indigo-300"
+              >
+                <Bot className="w-3 h-3 text-indigo-400" /> AI Swarm
+              </button>
+              <span className="text-slate-600">•</span>
+              <button
+                onClick={() => setCurrentTab('causal')}
+                className="hover:text-rose-400 transition flex items-center gap-1 font-bold text-rose-300"
+              >
+                <Scale className="w-3 h-3 text-rose-400" /> Causal AI
+              </button>
+              <span className="text-slate-600">•</span>
+              <button
                 onClick={() => setCurrentTab('simulation')}
                 className="hover:text-purple-400 transition flex items-center gap-1 font-bold text-purple-300"
               >
@@ -426,6 +445,12 @@ export function App() {
                       onNavigateToTab={(tab) => setCurrentTab(tab)}
                     />
                   )}
+
+                  {currentTab === 'causal' && <CausalInferenceView dataset={dataset} />}
+
+                  {currentTab === 'swarm' && <AutonomousAgentSwarmView dataset={dataset} />}
+
+                  {currentTab === 'alerts' && <AutomatedAlertsView dataset={dataset} />}
 
                   {currentTab === 'simulation' && <ScenarioSimulationView dataset={dataset} />}
 

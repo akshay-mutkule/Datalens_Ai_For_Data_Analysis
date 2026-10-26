@@ -157,6 +157,24 @@ export const AICopilotDrawer: React.FC<AICopilotDrawerProps> = ({
           'Which cohort had the highest lifetime value?',
           'How to improve retention curve trajectory?',
         ];
+      case 'causal':
+        return [
+          'What is the true causal ATE after backdoor de-biasing?',
+          'Which customer segments experience negative treatment drag?',
+          'Simulate counterfactual: what if discount were 10% lower?',
+        ];
+      case 'swarm':
+        return [
+          'Summarize the consensus between Dr. Cassandra and Sentinel',
+          'What was the primary counter-argument against rapid scaling?',
+          'Explain the risk-weighted ROI calculation by Evelyn Vance',
+        ];
+      case 'alerts':
+        return [
+          'Recommend 3 dynamic statistical tripwires for this dataset',
+          'How to calibrate sigma thresholds to eliminate alert fatigue?',
+          'Generate a PagerDuty payload schema for sudden metric drop',
+        ];
       case 'simulation':
         return [
           'What is the downside risk at P10 under recession shock?',

@@ -27,11 +27,13 @@ import {
   Cpu,
   Sun,
   Moon,
-  Lock,
   Sliders,
   Compass,
   GitFork,
   Wand2,
+  Scale,
+  Bot,
+  BellRing,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
@@ -74,11 +76,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   const tabs = [
     // Executive & Strategy
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, category: 'exec' },
+    { id: 'causal', label: 'Causal Inference', icon: Scale, badge: 'Do-Calculus', category: 'exec' },
     { id: 'simulation', label: 'What-If Simulation', icon: Sliders, badge: 'Monte Carlo', category: 'exec' },
     { id: 'rca', label: 'Root Cause & Drivers', icon: Compass, badge: 'Attribution', category: 'exec' },
     { id: 'report', label: 'Executive Report', icon: FileText, category: 'exec' },
 
     // Predictive & AI
+    { id: 'swarm', label: 'Agent Swarm', icon: Bot, badge: '4-Agent AI', highlight: true, category: 'ml' },
     { id: 'ml', label: 'Predictive & ML', icon: Brain, badge: 'AutoML', category: 'ml' },
     { id: 'blending', label: 'Data Blending', icon: GitMerge, badge: 'Fusion', category: 'ml' },
     { id: 'clustering', label: 'Clusters & PCA', icon: Users, badge: 'K-Means', category: 'ml' },
@@ -93,6 +97,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'pivot', label: 'Pivot Matrix', icon: Grid, category: 'bi' },
 
     // Engineering & Ops
+    { id: 'alerts', label: 'Sentinel Alerts', icon: BellRing, badge: 'Watchtower', category: 'dev' },
     { id: 'features', label: 'Feature Store', icon: Wand2, badge: 'Synthesis', category: 'dev' },
     { id: 'pipeline', label: 'Pipeline DAG', icon: GitFork, badge: 'Lineage', category: 'dev' },
     { id: 'sql', label: 'SQL Studio', icon: Terminal, category: 'dev' },
