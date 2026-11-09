@@ -157,6 +157,18 @@ export const AICopilotDrawer: React.FC<AICopilotDrawerProps> = ({
           'Which cohort had the highest lifetime value?',
           'How to improve retention curve trajectory?',
         ];
+      case 'warroom':
+        return [
+          'Read out the synthesized voice briefing for current DEFCON state',
+          'What is driving the positive KPI velocity momentum vector?',
+          'Execute automated outlier mitigation across high-risk partitions',
+        ];
+      case 'workflows':
+        return [
+          'How does the high-volatility circuit breaker chain nodes?',
+          'Simulate event trigger pulse and inspect output payload',
+          'Add automated PII hashing action node to DAG pipeline',
+        ];
       case 'causal':
         return [
           'What is the true causal ATE after backdoor de-biasing?',

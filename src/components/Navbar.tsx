@@ -34,6 +34,8 @@ import {
   Scale,
   Bot,
   BellRing,
+  Radio,
+  Workflow,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
@@ -76,6 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const tabs = [
     // Executive & Strategy
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, category: 'exec' },
+    { id: 'warroom', label: 'War Room HUD', icon: Radio, badge: 'Voice AI', highlight: true, category: 'exec' },
     { id: 'causal', label: 'Causal Inference', icon: Scale, badge: 'Do-Calculus', category: 'exec' },
     { id: 'simulation', label: 'What-If Simulation', icon: Sliders, badge: 'Monte Carlo', category: 'exec' },
     { id: 'rca', label: 'Root Cause & Drivers', icon: Compass, badge: 'Attribution', category: 'exec' },
@@ -97,6 +100,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'pivot', label: 'Pivot Matrix', icon: Grid, category: 'bi' },
 
     // Engineering & Ops
+    { id: 'workflows', label: 'Decision Logic', icon: Workflow, badge: 'Automations', category: 'dev' },
     { id: 'alerts', label: 'Sentinel Alerts', icon: BellRing, badge: 'Watchtower', category: 'dev' },
     { id: 'features', label: 'Feature Store', icon: Wand2, badge: 'Synthesis', category: 'dev' },
     { id: 'pipeline', label: 'Pipeline DAG', icon: GitFork, badge: 'Lineage', category: 'dev' },
