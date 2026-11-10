@@ -33,6 +33,10 @@ import { ExecutiveWarRoomView } from './components/ExecutiveWarRoomView';
 import { AutomationWorkflowView } from './components/AutomationWorkflowView';
 import { ExplainableAIView } from './components/ExplainableAIView';
 import { GeoSpatialIntelligenceView } from './components/GeoSpatialIntelligenceView';
+import { SyntheticTwinStudioView } from './components/SyntheticTwinStudioView';
+import { ModelArenaView } from './components/ModelArenaView';
+import { StressTestRiskMatrixView } from './components/StressTestRiskMatrixView';
+import { RealTimeStreamEngineView } from './components/RealTimeStreamEngineView';
 import { DatasetState, CleaningPipelineConfig } from './types/dataset';
 import { useTheme } from './context/ThemeContext';
 import {
@@ -56,6 +60,9 @@ import {
   Workflow,
   Globe,
   Target,
+  Trophy,
+  Lock,
+  Flame,
 } from 'lucide-react';
 
 export function App() {
@@ -379,6 +386,34 @@ export function App() {
               </button>
               <span className="text-slate-600">•</span>
               <button
+                onClick={() => setCurrentTab('risk')}
+                className="hover:text-red-400 transition flex items-center gap-1 font-bold text-red-300"
+              >
+                <Flame className="w-3 h-3 text-red-400" /> Stress & Risk
+              </button>
+              <span className="text-slate-600">•</span>
+              <button
+                onClick={() => setCurrentTab('streaming')}
+                className="hover:text-cyan-400 transition flex items-center gap-1 font-bold text-cyan-300 animate-pulse"
+              >
+                <Activity className="w-3 h-3 text-cyan-400" /> Live Stream
+              </button>
+              <span className="text-slate-600">•</span>
+              <button
+                onClick={() => setCurrentTab('arena')}
+                className="hover:text-amber-400 transition flex items-center gap-1 font-bold text-amber-300"
+              >
+                <Trophy className="w-3 h-3 text-amber-400" /> Model Arena
+              </button>
+              <span className="text-slate-600">•</span>
+              <button
+                onClick={() => setCurrentTab('twin')}
+                className="hover:text-emerald-400 transition flex items-center gap-1 font-bold text-emerald-300"
+              >
+                <Lock className="w-3 h-3 text-emerald-400" /> Synthetic Twin
+              </button>
+              <span className="text-slate-600">•</span>
+              <button
                 onClick={() => setCurrentTab('xai')}
                 className="hover:text-teal-400 transition flex items-center gap-1 font-bold text-teal-300"
               >
@@ -486,6 +521,19 @@ export function App() {
                     <ExecutiveWarRoomView
                       dataset={dataset}
                       onNavigateTab={(tab) => setCurrentTab(tab)}
+                    />
+                  )}
+
+                  {currentTab === 'risk' && <StressTestRiskMatrixView dataset={dataset} />}
+
+                  {currentTab === 'streaming' && <RealTimeStreamEngineView dataset={dataset} />}
+
+                  {currentTab === 'arena' && <ModelArenaView dataset={dataset} />}
+
+                  {currentTab === 'twin' && (
+                    <SyntheticTwinStudioView
+                      dataset={dataset}
+                      onApplySyntheticDataset={handleApplyMergedDataset}
                     />
                   )}
 

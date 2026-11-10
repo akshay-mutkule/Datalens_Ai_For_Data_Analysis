@@ -157,6 +157,30 @@ export const AICopilotDrawer: React.FC<AICopilotDrawerProps> = ({
           'Which cohort had the highest lifetime value?',
           'How to improve retention curve trajectory?',
         ];
+      case 'risk':
+        return [
+          'Calculate Parametric 99% VaR and Expected Shortfall (CVaR)',
+          'Simulate 2008 Lehman Shock: what is our solvency ratio drop?',
+          'What is the optimal Sharpe portfolio allocation on the Markowitz frontier?',
+        ];
+      case 'streaming':
+        return [
+          'What caused the latest Bollinger Band breach on the live waveform?',
+          'How does the dual EMA-9/EMA-21 momentum cross behave in high volatility?',
+          'Audit packet microsecond latency and jitter distribution',
+        ];
+      case 'arena':
+        return [
+          'Which architecture won the 5-way tournament bake-off?',
+          'Compare XGBoost vs Neural Net latency and memory footprint',
+          'Generate a cURL endpoint snippet for live edge inference',
+        ];
+      case 'twin':
+        return [
+          'Verify Wasserstein distribution fidelity between real and twin',
+          'How does epsilon Differential Privacy prevent PII re-identification?',
+          'Mount synthesized digital twin as active session dataset',
+        ];
       case 'xai':
         return [
           'Explain the positive vs negative SHAP attribution waterfall',

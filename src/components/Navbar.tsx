@@ -38,6 +38,10 @@ import {
   Workflow,
   Globe,
   Target,
+  Trophy,
+  Lock,
+  Flame,
+  Activity,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
@@ -81,12 +85,14 @@ export const Navbar: React.FC<NavbarProps> = ({
     // Executive & Strategy
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, category: 'exec' },
     { id: 'warroom', label: 'War Room HUD', icon: Radio, badge: 'Voice AI', highlight: true, category: 'exec' },
+    { id: 'risk', label: 'Stress Test & Risk', icon: Flame, badge: 'VaR & Shock', highlight: true, category: 'exec' },
     { id: 'causal', label: 'Causal Inference', icon: Scale, badge: 'Do-Calculus', category: 'exec' },
     { id: 'simulation', label: 'What-If Simulation', icon: Sliders, badge: 'Monte Carlo', category: 'exec' },
     { id: 'rca', label: 'Root Cause & Drivers', icon: Compass, badge: 'Attribution', category: 'exec' },
     { id: 'report', label: 'Executive Report', icon: FileText, category: 'exec' },
 
     // Predictive & AI
+    { id: 'arena', label: 'Model Arena', icon: Trophy, badge: '5-Way Bake-Off', category: 'ml' },
     { id: 'xai', label: 'Explainable AI', icon: Target, badge: 'SHAP XAI', category: 'ml' },
     { id: 'swarm', label: 'Agent Swarm', icon: Bot, badge: '4-Agent AI', highlight: true, category: 'ml' },
     { id: 'ml', label: 'Predictive & ML', icon: Brain, badge: 'AutoML', category: 'ml' },
@@ -104,6 +110,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'pivot', label: 'Pivot Matrix', icon: Grid, category: 'bi' },
 
     // Engineering & Ops
+    { id: 'streaming', label: 'Live Stream Telemetry', icon: Activity, badge: 'Waveform', highlight: true, category: 'dev' },
+    { id: 'twin', label: 'Synthetic Twin', icon: Lock, badge: 'ε-Privacy', category: 'dev' },
     { id: 'workflows', label: 'Decision Logic', icon: Workflow, badge: 'Automations', category: 'dev' },
     { id: 'alerts', label: 'Sentinel Alerts', icon: BellRing, badge: 'Watchtower', category: 'dev' },
     { id: 'features', label: 'Feature Store', icon: Wand2, badge: 'Synthesis', category: 'dev' },

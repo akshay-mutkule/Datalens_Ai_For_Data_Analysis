@@ -37,6 +37,10 @@ import {
   Workflow,
   Target,
   Globe,
+  Trophy,
+  Lock,
+  Flame,
+  Activity,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
@@ -101,6 +105,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     const views = [
       { id: 'dashboard', title: 'Executive KPI Dashboard', subtitle: 'High-level business metrics, KPIs, and trend charts', icon: BarChart3, badge: 'Overview' },
       { id: 'warroom', title: 'Executive War Room & AI Voice HUD', subtitle: 'Live NOC operations bridge, synthesized voice briefing, and DEFCON telemetry', icon: Radio, badge: 'Voice AI' },
+      { id: 'risk', title: 'Stress Test & Quantitative Risk Matrix', subtitle: 'Institutional VaR/CVaR, Markowitz Efficient Frontier, and Black Swan shocks', icon: Flame, badge: 'Risk & VaR' },
+      { id: 'streaming', title: 'Real-Time Streaming Telemetry & Oscilloscope', subtitle: 'Live tick waveform, dynamic Bollinger Bands, EMA 9/21, and microsecond jitter', icon: Activity, badge: 'Waveform' },
+      { id: 'arena', title: 'Multi-Model Tournament Arena & Edge Deployer', subtitle: '5-way model bake-off, radar tradeoff comparison, and 1-click REST deployment', icon: Trophy, badge: 'Bake-Off' },
+      { id: 'twin', title: 'Synthetic Digital Twin & Generative Engine', subtitle: 'Multivariate copula sampling, differential privacy noise, and fidelity verification', icon: Lock, badge: 'Synthetic' },
       { id: 'xai', title: 'Explainable AI & SHAP Attribution Studio', subtitle: 'SHAP waterfall decomposition, partial dependence curves, and counterfactuals', icon: Target, badge: 'XAI' },
       { id: 'geospatial', title: 'GeoSpatial & Territory Command Matrix', subtitle: 'Multi-region topology map, territorial arbitrage, and edge latency tracking', icon: Globe, badge: 'GeoSpatial' },
       { id: 'workflows', title: 'Autonomous Decision Logic & Workflow Studio', subtitle: 'Event-driven trigger-action DAGs, simulation pulses, and execution trace', icon: Workflow, badge: 'Automations' },
