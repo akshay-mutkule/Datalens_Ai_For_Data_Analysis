@@ -157,6 +157,18 @@ export const AICopilotDrawer: React.FC<AICopilotDrawerProps> = ({
           'Which cohort had the highest lifetime value?',
           'How to improve retention curve trajectory?',
         ];
+      case 'xai':
+        return [
+          'Explain the positive vs negative SHAP attribution waterfall',
+          'Solve counterfactual: what minimal shift yields +20% uplift?',
+          'Generate an EU AI Act & SOC 2 compliant Model Card audit',
+        ];
+      case 'geospatial':
+        return [
+          'Which territory has the highest unit margin efficiency?',
+          'Quantify the regional arbitrage opportunity for budget shift',
+          'Audit cross-region packet latency and edge residency compliance',
+        ];
       case 'warroom':
         return [
           'Read out the synthesized voice briefing for current DEFCON state',

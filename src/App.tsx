@@ -31,6 +31,8 @@ import { AutonomousAgentSwarmView } from './components/AutonomousAgentSwarmView'
 import { AutomatedAlertsView } from './components/AutomatedAlertsView';
 import { ExecutiveWarRoomView } from './components/ExecutiveWarRoomView';
 import { AutomationWorkflowView } from './components/AutomationWorkflowView';
+import { ExplainableAIView } from './components/ExplainableAIView';
+import { GeoSpatialIntelligenceView } from './components/GeoSpatialIntelligenceView';
 import { DatasetState, CleaningPipelineConfig } from './types/dataset';
 import { useTheme } from './context/ThemeContext';
 import {
@@ -52,6 +54,8 @@ import {
   Scale,
   Radio,
   Workflow,
+  Globe,
+  Target,
 } from 'lucide-react';
 
 export function App() {
@@ -375,6 +379,20 @@ export function App() {
               </button>
               <span className="text-slate-600">•</span>
               <button
+                onClick={() => setCurrentTab('xai')}
+                className="hover:text-teal-400 transition flex items-center gap-1 font-bold text-teal-300"
+              >
+                <Target className="w-3 h-3 text-teal-400" /> XAI & SHAP
+              </button>
+              <span className="text-slate-600">•</span>
+              <button
+                onClick={() => setCurrentTab('geospatial')}
+                className="hover:text-cyan-400 transition flex items-center gap-1 font-bold text-cyan-300"
+              >
+                <Globe className="w-3 h-3 text-cyan-400" /> GeoSpatial
+              </button>
+              <span className="text-slate-600">•</span>
+              <button
                 onClick={() => setCurrentTab('workflows')}
                 className="hover:text-purple-400 transition flex items-center gap-1 font-bold text-purple-300"
               >
@@ -470,6 +488,10 @@ export function App() {
                       onNavigateTab={(tab) => setCurrentTab(tab)}
                     />
                   )}
+
+                  {currentTab === 'xai' && <ExplainableAIView dataset={dataset} />}
+
+                  {currentTab === 'geospatial' && <GeoSpatialIntelligenceView dataset={dataset} />}
 
                   {currentTab === 'workflows' && (
                     <AutomationWorkflowView dataset={dataset} />

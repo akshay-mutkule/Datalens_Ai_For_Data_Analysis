@@ -36,6 +36,8 @@ import {
   BellRing,
   Radio,
   Workflow,
+  Globe,
+  Target,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
@@ -85,6 +87,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'report', label: 'Executive Report', icon: FileText, category: 'exec' },
 
     // Predictive & AI
+    { id: 'xai', label: 'Explainable AI', icon: Target, badge: 'SHAP XAI', category: 'ml' },
     { id: 'swarm', label: 'Agent Swarm', icon: Bot, badge: '4-Agent AI', highlight: true, category: 'ml' },
     { id: 'ml', label: 'Predictive & ML', icon: Brain, badge: 'AutoML', category: 'ml' },
     { id: 'blending', label: 'Data Blending', icon: GitMerge, badge: 'Fusion', category: 'ml' },
@@ -94,6 +97,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'chat', label: 'AI Analyst', icon: Sparkles, highlight: true, category: 'ml' },
 
     // Business Intelligence & Exploration
+    { id: 'geospatial', label: 'GeoSpatial Matrix', icon: Globe, badge: 'Territory', category: 'bi' },
     { id: 'eda', label: 'Statistical EDA', icon: LineChart, category: 'bi' },
     { id: 'studio', label: 'Chart Studio', icon: PieChart, category: 'bi' },
     { id: 'data', label: 'Data Explorer', icon: FileSpreadsheet, category: 'bi' },

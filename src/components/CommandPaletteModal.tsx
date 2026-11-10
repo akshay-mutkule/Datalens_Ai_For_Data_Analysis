@@ -35,6 +35,8 @@ import {
   BellRing,
   Radio,
   Workflow,
+  Target,
+  Globe,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
@@ -99,6 +101,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     const views = [
       { id: 'dashboard', title: 'Executive KPI Dashboard', subtitle: 'High-level business metrics, KPIs, and trend charts', icon: BarChart3, badge: 'Overview' },
       { id: 'warroom', title: 'Executive War Room & AI Voice HUD', subtitle: 'Live NOC operations bridge, synthesized voice briefing, and DEFCON telemetry', icon: Radio, badge: 'Voice AI' },
+      { id: 'xai', title: 'Explainable AI & SHAP Attribution Studio', subtitle: 'SHAP waterfall decomposition, partial dependence curves, and counterfactuals', icon: Target, badge: 'XAI' },
+      { id: 'geospatial', title: 'GeoSpatial & Territory Command Matrix', subtitle: 'Multi-region topology map, territorial arbitrage, and edge latency tracking', icon: Globe, badge: 'GeoSpatial' },
       { id: 'workflows', title: 'Autonomous Decision Logic & Workflow Studio', subtitle: 'Event-driven trigger-action DAGs, simulation pulses, and execution trace', icon: Workflow, badge: 'Automations' },
       { id: 'causal', title: 'Causal Inference & Counterfactual Engine', subtitle: 'Pearlian causal DAGs, Backdoor de-biasing, and ATE estimation', icon: Scale, badge: 'Causal AI' },
       { id: 'swarm', title: 'Autonomous Multi-Agent AI Swarm', subtitle: '4 specialized AI personas debating hypotheses and synthesizing board dossiers', icon: Bot, badge: 'AI Swarm' },
