@@ -157,6 +157,18 @@ export const AICopilotDrawer: React.FC<AICopilotDrawerProps> = ({
           'Which cohort had the highest lifetime value?',
           'How to improve retention curve trajectory?',
         ];
+      case 'graph':
+        return [
+          'Which feature or entity has the highest PageRank centrality?',
+          'Explain the weighted Dijkstra influence path between key metrics',
+          'Interpret the modularity communities discovered in the topology',
+        ];
+      case 'optimizer':
+        return [
+          'Which Pareto-optimal policy gives the best balance vs baseline?',
+          'Explain the trade-off slope along the Pareto skyline curve',
+          'Which decision parameter drives the largest objective lift?',
+        ];
       case 'risk':
         return [
           'Calculate Parametric 99% VaR and Expected Shortfall (CVaR)',

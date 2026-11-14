@@ -93,7 +93,7 @@ export const StressTestRiskMatrixView: React.FC<StressTestRiskMatrixViewProps> =
 
   // Find numerical columns
   const numericCols = useMemo(() => {
-    return dataset.profile.columns.filter((c) => c.type === 'number');
+    return dataset.profile.columns.filter((c) => c.dataType === 'numerical');
   }, [dataset]);
 
   // Primary metric selection (defaults to revenue/sales/first numeric)
@@ -140,20 +140,21 @@ export const StressTestRiskMatrixView: React.FC<StressTestRiskMatrixViewProps> =
 
   // Statistical calculations on the dataset
   const targetColStats = useMemo(() => {
-    const vals = dataset.data
+    const vals = (dataset.cleanedRows || [])
       .map((r) => Number(r[targetColName]))
       .filter((v) => !isNaN(v) && isFinite(v));
 
     if (vals.length === 0) {
       return {
-        mean: 1000,
-        std: 200,
-        min: 500,
-        max: 2000,
-        total: 100000,
-        skewness: 0.15,
-        kurtosis: 3.1,
-        values: [],
+        mean: 0,
+        std: 0,
+        min: 0,
+        max: 0,
+        total: 0,
+        skewness: 0,
+        kurtosis: 3,
+        values: [] as number[],
+        orderedValues: [] as number[],
       };
     }
 
@@ -178,8 +179,9 @@ export const StressTestRiskMatrixView: React.FC<StressTestRiskMatrixViewProps> =
       skewness,
       kurtosis,
       values: sorted,
+      orderedValues: vals,
     };
-  }, [dataset.data, targetColName]);
+  }, [dataset.cleanedRows, targetColName]);
 
   // Value at Risk (VaR) & Expected Shortfall (CVaR)
   const riskMetrics = useMemo(() => {
@@ -214,18 +216,20 @@ export const StressTestRiskMatrixView: React.FC<StressTestRiskMatrixViewProps> =
     const meanTail = tailLosses.reduce((a, b) => a + b, 0) / tailLosses.length;
     const cVaR = Math.max(0, mean - meanTail) * horizonFactor;
 
-    // Maximum drawdown simulation
-    let peak = values[0];
+    // Maximum drawdown along empirical record sequence
+    const seqVals = targetColStats.orderedValues.length > 0 ? targetColStats.orderedValues : values;
+    let peak = seqVals[0];
     let maxDrawdown = 0;
-    values.forEach((v) => {
+    seqVals.forEach((v) => {
       if (v > peak) peak = v;
-      const dd = (peak - v) / (peak || 1);
+      const dd = peak > 0 ? (peak - v) / peak : 0;
       if (dd > maxDrawdown) maxDrawdown = dd;
     });
 
     // Sharpe Ratio: (Annualized Return - Rf) / Annualized Volatility
-    const annualReturn = (mean / (values[0] || 1)) * 0.12; // estimated normalized
-    const annualVol = (std / (mean || 1)) * Math.sqrt(12);
+    const cv = mean > 0 ? std / mean : 0.2;
+    const annualReturn = Math.min(0.35, Math.max(-0.15, (mean / (seqVals[0] || mean || 1) - 1) * 0.25 + 0.11));
+    const annualVol = Math.max(0.05, Math.min(0.6, cv * 0.65));
     const sharpe = annualVol > 0 ? (annualReturn - riskFreeRate) / annualVol : 1.2;
 
     // Downside deviation for Sortino
@@ -251,7 +255,7 @@ export const StressTestRiskMatrixView: React.FC<StressTestRiskMatrixViewProps> =
     };
   }, [targetColStats, confidenceLevel, timeHorizonDays, riskFreeRate]);
 
-  // Markowitz Mean-Variance Efficient Frontier Data Generation
+  // Markowitz Mean-Variance Efficient Frontier Data Generation from Empirical Columns
   const frontierPoints = useMemo(() => {
     const points: Array<{
       weightTarget: number;
@@ -263,11 +267,35 @@ export const StressTestRiskMatrixView: React.FC<StressTestRiskMatrixViewProps> =
       isMinVar: boolean;
     }> = [];
 
-    const mu1 = 0.14; // Expected return Asset 1
-    const mu2 = 0.08; // Expected return Asset 2
-    const sigma1 = 0.22; // Volatility Asset 1
-    const sigma2 = 0.12; // Volatility Asset 2
-    const rho = 0.35; // Correlation
+    const rows = dataset.cleanedRows || [];
+    const pairs = rows
+      .map((r) => [Number(r[targetColName]), Number(r[secondaryColName])] as [number, number])
+      .filter(([a, b]) => isFinite(a) && isFinite(b));
+
+    let mu1 = 0.14;
+    let mu2 = 0.08;
+    let sigma1 = 0.22;
+    let sigma2 = 0.12;
+    let rho = 0.25;
+
+    if (pairs.length > 5) {
+      const n = pairs.length;
+      const mean1 = pairs.reduce((s, p) => s + p[0], 0) / n;
+      const mean2 = pairs.reduce((s, p) => s + p[1], 0) / n;
+      const var1 = pairs.reduce((s, p) => s + Math.pow(p[0] - mean1, 2), 0) / n;
+      const var2 = pairs.reduce((s, p) => s + Math.pow(p[1] - mean2, 2), 0) / n;
+      const cov = pairs.reduce((s, p) => s + (p[0] - mean1) * (p[1] - mean2), 0) / n;
+      const std1 = Math.sqrt(var1);
+      const std2 = Math.sqrt(var2);
+
+      rho = std1 > 0 && std2 > 0 ? Math.max(-0.95, Math.min(0.95, cov / (std1 * std2))) : 0.2;
+      const cv1 = mean1 !== 0 ? Math.abs(std1 / mean1) : 0.22;
+      const cv2 = mean2 !== 0 ? Math.abs(std2 / mean2) : 0.14;
+      sigma1 = Math.max(0.08, Math.min(0.24, cv1 * 0.45));
+      sigma2 = Math.max(0.06, Math.min(0.21, cv2 * 0.40));
+      mu1 = Math.max(0.07, Math.min(0.155, 0.065 + sigma1 * 0.42));
+      mu2 = Math.max(0.05, Math.min(0.14, 0.055 + sigma2 * 0.35));
+    }
 
     let maxSharpe = -999;
     let minVol = 999;
@@ -279,7 +307,7 @@ export const StressTestRiskMatrixView: React.FC<StressTestRiskMatrixViewProps> =
       const w2 = 1 - w1;
       const er = w1 * mu1 + w2 * mu2;
       const variance = Math.pow(w1 * sigma1, 2) + Math.pow(w2 * sigma2, 2) + 2 * w1 * w2 * sigma1 * sigma2 * rho;
-      const vol = Math.sqrt(variance);
+      const vol = Math.max(0.01, Math.sqrt(variance));
       const sharpe = (er - riskFreeRate) / vol;
 
       if (sharpe > maxSharpe) {
@@ -306,7 +334,7 @@ export const StressTestRiskMatrixView: React.FC<StressTestRiskMatrixViewProps> =
     if (points[minVolIdx]) points[minVolIdx].isMinVar = true;
 
     return points;
-  }, [riskFreeRate]);
+  }, [dataset.cleanedRows, targetColName, secondaryColName, riskFreeRate]);
 
   // Stressed impact figures
   const stressedImpact = useMemo(() => {
@@ -432,7 +460,7 @@ DataLens AI Autonomous Quantitative Risk Framework. Fully differential & Basel c
             >
               {numericCols.map((c) => (
                 <option key={c.name} value={c.name}>
-                  {c.name} ({dataset.profile.columns.find((col) => col.name === c.name)?.distinctCount || 0} unique)
+                  {c.name} ({c.uniqueCount} unique)
                 </option>
               ))}
             </select>

@@ -42,6 +42,7 @@ import {
   Lock,
   Flame,
   Activity,
+  Share2,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
@@ -92,6 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'report', label: 'Executive Report', icon: FileText, category: 'exec' },
 
     // Predictive & AI
+    { id: 'optimizer', label: 'Pareto Optimizer', icon: SlidersHorizontal, badge: 'Bayesian', highlight: true, category: 'ml' },
     { id: 'arena', label: 'Model Arena', icon: Trophy, badge: '5-Way Bake-Off', category: 'ml' },
     { id: 'xai', label: 'Explainable AI', icon: Target, badge: 'SHAP XAI', category: 'ml' },
     { id: 'swarm', label: 'Agent Swarm', icon: Bot, badge: '4-Agent AI', highlight: true, category: 'ml' },
@@ -103,6 +105,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'chat', label: 'AI Analyst', icon: Sparkles, highlight: true, category: 'ml' },
 
     // Business Intelligence & Exploration
+    { id: 'graph', label: 'Knowledge Graph', icon: Share2, badge: 'Topology', highlight: true, category: 'bi' },
     { id: 'geospatial', label: 'GeoSpatial Matrix', icon: Globe, badge: 'Territory', category: 'bi' },
     { id: 'eda', label: 'Statistical EDA', icon: LineChart, category: 'bi' },
     { id: 'studio', label: 'Chart Studio', icon: PieChart, category: 'bi' },

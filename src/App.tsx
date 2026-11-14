@@ -37,6 +37,8 @@ import { SyntheticTwinStudioView } from './components/SyntheticTwinStudioView';
 import { ModelArenaView } from './components/ModelArenaView';
 import { StressTestRiskMatrixView } from './components/StressTestRiskMatrixView';
 import { RealTimeStreamEngineView } from './components/RealTimeStreamEngineView';
+import { GraphKnowledgeView } from './components/GraphKnowledgeView';
+import { BayesianOptimizationView } from './components/BayesianOptimizationView';
 import { DatasetState, CleaningPipelineConfig } from './types/dataset';
 import { useTheme } from './context/ThemeContext';
 import {
@@ -63,6 +65,8 @@ import {
   Trophy,
   Lock,
   Flame,
+  Share2,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 export function App() {
@@ -349,59 +353,72 @@ export function App() {
         <div className="bg-slate-900 border-b border-slate-800 text-slate-300 text-[11px] py-1.5 px-4 sm:px-8">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 overflow-x-auto scrollbar-none font-mono">
             <div className="flex items-center gap-4 shrink-0">
-              <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                ENGINE: ACTIVE
+              <span className="text-emerald-400 font-semibold">
+                {dataset.profile.totalRows.toLocaleString()} rows · {dataset.profile.totalColumns} cols
               </span>
-              <span className="text-slate-500 hidden sm:inline">|</span>
-              <span className="text-slate-300 hidden sm:inline">
-                LATENCY: <strong className="text-blue-400">&lt; 8ms</strong>
+              <span className="text-slate-600 hidden sm:inline">|</span>
+              <span className="text-slate-400 hidden sm:inline">
+                Quality: <strong className="text-slate-200">{dataset.profile.qualityScore}%</strong>
               </span>
-              <span className="text-slate-500 hidden md:inline">|</span>
-              <span className="text-slate-300 hidden md:inline">
-                MEM ESTIMATE: <strong className="text-purple-400">~{((dataset.profile.fileSizeBytes * 2.2) / 1024 / 1024).toFixed(2)} MB</strong>
+              <span className="text-slate-600 hidden md:inline">|</span>
+              <span className="text-slate-400 hidden md:inline">
+                Footprint: <strong className="text-slate-200">{((dataset.profile.fileSizeBytes * 2.2) / 1024 / 1024).toFixed(2)} MB</strong>
               </span>
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
               <button
                 onClick={() => setIsSecurityModalOpen(true)}
-                className="hover:text-emerald-400 transition flex items-center gap-1 font-bold text-emerald-400/90"
+                className="hover:text-emerald-400 transition flex items-center gap-1 font-semibold text-emerald-400/90 whitespace-nowrap"
               >
                 <ShieldCheck className="w-3 h-3 text-emerald-400" /> Sentinel (SOC 2)
               </button>
-              <span className="text-slate-600">•</span>
+              <span className="text-slate-600">·</span>
               <button
                 onClick={() => setIsCopilotOpen(true)}
-                className="hover:text-indigo-400 transition flex items-center gap-1 font-bold text-indigo-300"
+                className="hover:text-indigo-400 transition flex items-center gap-1 font-semibold text-indigo-300 whitespace-nowrap"
               >
                 <Sparkles className="w-3 h-3 text-indigo-400" /> Copilot (⌘J)
               </button>
-              <span className="text-slate-600">•</span>
+              <span className="text-slate-600">·</span>
+              <button
+                onClick={() => setCurrentTab('graph')}
+                className="hover:text-blue-400 transition flex items-center gap-1 font-semibold text-blue-300 whitespace-nowrap"
+              >
+                <Share2 className="w-3 h-3 text-blue-400" /> Knowledge Graph
+              </button>
+              <span className="text-slate-600">·</span>
+              <button
+                onClick={() => setCurrentTab('optimizer')}
+                className="hover:text-emerald-400 transition flex items-center gap-1 font-semibold text-emerald-300 whitespace-nowrap"
+              >
+                <SlidersHorizontal className="w-3 h-3 text-emerald-400" /> Pareto Optimizer
+              </button>
+              <span className="text-slate-600">·</span>
               <button
                 onClick={() => setCurrentTab('warroom')}
-                className="hover:text-rose-400 transition flex items-center gap-1 font-bold text-rose-300 animate-pulse"
+                className="hover:text-rose-400 transition flex items-center gap-1 font-semibold text-rose-300 whitespace-nowrap"
               >
                 <Radio className="w-3 h-3 text-rose-400" /> War Room HUD
               </button>
-              <span className="text-slate-600">•</span>
+              <span className="text-slate-600">·</span>
               <button
                 onClick={() => setCurrentTab('risk')}
-                className="hover:text-red-400 transition flex items-center gap-1 font-bold text-red-300"
+                className="hover:text-red-400 transition flex items-center gap-1 font-semibold text-red-300 whitespace-nowrap"
               >
-                <Flame className="w-3 h-3 text-red-400" /> Stress & Risk
+                <Flame className="w-3 h-3 text-red-400" /> Stress &amp; Risk
               </button>
-              <span className="text-slate-600">•</span>
+              <span className="text-slate-600">·</span>
               <button
                 onClick={() => setCurrentTab('streaming')}
-                className="hover:text-cyan-400 transition flex items-center gap-1 font-bold text-cyan-300 animate-pulse"
+                className="hover:text-cyan-400 transition flex items-center gap-1 font-semibold text-cyan-300 whitespace-nowrap"
               >
                 <Activity className="w-3 h-3 text-cyan-400" /> Live Stream
               </button>
-              <span className="text-slate-600">•</span>
+              <span className="text-slate-600">·</span>
               <button
                 onClick={() => setCurrentTab('arena')}
-                className="hover:text-amber-400 transition flex items-center gap-1 font-bold text-amber-300"
+                className="hover:text-amber-400 transition flex items-center gap-1 font-semibold text-amber-300 whitespace-nowrap"
               >
                 <Trophy className="w-3 h-3 text-amber-400" /> Model Arena
               </button>
@@ -527,6 +544,10 @@ export function App() {
                   {currentTab === 'risk' && <StressTestRiskMatrixView dataset={dataset} />}
 
                   {currentTab === 'streaming' && <RealTimeStreamEngineView dataset={dataset} />}
+
+                  {currentTab === 'graph' && <GraphKnowledgeView dataset={dataset} />}
+
+                  {currentTab === 'optimizer' && <BayesianOptimizationView dataset={dataset} />}
 
                   {currentTab === 'arena' && <ModelArenaView dataset={dataset} />}
 

@@ -50,7 +50,7 @@ export const RealTimeStreamEngineView: React.FC<RealTimeStreamEngineViewProps> =
 
   // Find numerical columns
   const numericCols = useMemo(() => {
-    return dataset.profile.columns.filter((c) => c.type === 'number');
+    return dataset.profile.columns.filter((c) => c.dataType === 'numerical');
   }, [dataset]);
 
   // Selected streaming feed metric
@@ -61,7 +61,7 @@ export const RealTimeStreamEngineView: React.FC<RealTimeStreamEngineViewProps> =
 
   // Calculate baseline parameters from current dataset
   const baselineStats = useMemo(() => {
-    const vals = dataset.data
+    const vals = (dataset.cleanedRows || [])
       .map((r) => Number(r[streamColName]))
       .filter((v) => !isNaN(v) && isFinite(v));
 
@@ -71,7 +71,7 @@ export const RealTimeStreamEngineView: React.FC<RealTimeStreamEngineViewProps> =
     const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
     const variance = vals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (vals.length || 1);
     return { mean, std: Math.max(1, Math.sqrt(variance)) };
-  }, [dataset.data, streamColName]);
+  }, [dataset.cleanedRows, streamColName]);
 
   // Stream execution states
   const [isPlaying, setIsPlaying] = useState<boolean>(true);

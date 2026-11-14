@@ -41,6 +41,8 @@ import {
   Lock,
   Flame,
   Activity,
+  Share2,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { DatasetState } from '../types/dataset';
 import { SAMPLE_DATASETS } from '../data/sampleDatasets';
@@ -107,6 +109,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       { id: 'warroom', title: 'Executive War Room & AI Voice HUD', subtitle: 'Live NOC operations bridge, synthesized voice briefing, and DEFCON telemetry', icon: Radio, badge: 'Voice AI' },
       { id: 'risk', title: 'Stress Test & Quantitative Risk Matrix', subtitle: 'Institutional VaR/CVaR, Markowitz Efficient Frontier, and Black Swan shocks', icon: Flame, badge: 'Risk & VaR' },
       { id: 'streaming', title: 'Real-Time Streaming Telemetry & Oscilloscope', subtitle: 'Live tick waveform, dynamic Bollinger Bands, EMA 9/21, and microsecond jitter', icon: Activity, badge: 'Waveform' },
+      { id: 'graph', title: 'Knowledge Graph & Topological Entity Network', subtitle: 'Force-directed correlation/entity network, PageRank centrality, and Dijkstra pathing', icon: Share2, badge: 'Topology' },
+      { id: 'optimizer', title: 'Bayesian Multi-Objective Pareto Optimizer', subtitle: 'Ridge quadratic response surfaces, UCB acquisition search, and Pareto skyline curves', icon: SlidersHorizontal, badge: 'Pareto AI' },
       { id: 'arena', title: 'Multi-Model Tournament Arena & Edge Deployer', subtitle: '5-way model bake-off, radar tradeoff comparison, and 1-click REST deployment', icon: Trophy, badge: 'Bake-Off' },
       { id: 'twin', title: 'Synthetic Digital Twin & Generative Engine', subtitle: 'Multivariate copula sampling, differential privacy noise, and fidelity verification', icon: Lock, badge: 'Synthetic' },
       { id: 'xai', title: 'Explainable AI & SHAP Attribution Studio', subtitle: 'SHAP waterfall decomposition, partial dependence curves, and counterfactuals', icon: Target, badge: 'XAI' },
