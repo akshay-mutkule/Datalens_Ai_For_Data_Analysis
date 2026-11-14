@@ -1,22 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Layers,
   Hash,
   Type,
   Calendar,
-  AlertTriangle,
-  CheckCircle2,
   Sliders,
-  Shield,
   Key,
   Search,
   Database,
-  ArrowRight,
-  Filter,
-  Brain,
-  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  Shield,
 } from 'lucide-react';
 import { DatasetProfile } from '../types/dataset';
+import { useTheme } from '../context/ThemeContext';
 
 interface DatasetOverviewCardProps {
   profile: DatasetProfile;
@@ -27,25 +23,23 @@ interface DatasetOverviewCardProps {
 export const DatasetOverviewCard: React.FC<DatasetOverviewCardProps> = ({
   profile,
   onOpenCleaningModal,
-  onNavigateTab,
 }) => {
+  const { isDark } = useTheme();
+  const [expanded, setExpanded] = useState(false);
   const [colFilter, setColFilter] = useState('');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('all');
 
   const getQualityColor = (score: number) => {
-    if (score >= 90) return { text: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', ring: 'stroke-emerald-500' };
-    if (score >= 70) return { text: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', ring: 'stroke-blue-500' };
-    if (score >= 50) return { text: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', ring: 'stroke-amber-500' };
-    return { text: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200', ring: 'stroke-rose-500' };
+    if (score >= 90) return 'text-emerald-500';
+    if (score >= 70) return 'text-blue-500';
+    if (score >= 50) return 'text-amber-500';
+    return 'text-rose-500';
   };
 
-  const quality = getQualityColor(profile.qualityScore);
-  const strokeDashoffset = 100 - profile.qualityScore;
-
-  // Filter columns
   const filteredColumns = useMemo(() => {
     return profile.columns.filter((c) => {
-      const matchText = c.name.toLowerCase().includes(colFilter.toLowerCase()) ||
+      const matchText =
+        c.name.toLowerCase().includes(colFilter.toLowerCase()) ||
         c.inferredType.toLowerCase().includes(colFilter.toLowerCase());
       const matchType = selectedTypeFilter === 'all' || c.dataType === selectedTypeFilter;
       return matchText && matchType;
@@ -56,227 +50,174 @@ export const DatasetOverviewCard: React.FC<DatasetOverviewCardProps> = ({
   const catPct = Math.round((profile.columnTypeCounts.categorical / (profile.totalColumns || 1)) * 100);
   const datePct = Math.round((profile.columnTypeCounts.date / (profile.totalColumns || 1)) * 100);
 
-  return (
-    <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden space-y-6">
-      {/* Ambient background accent */}
-      <div className="absolute top-0 right-0 w-96 h-48 bg-gradient-to-bl from-blue-50/70 via-indigo-50/30 to-transparent pointer-events-none -z-0" />
+  const surfaceBg = isDark
+    ? 'bg-slate-900/90 border-slate-800 text-slate-100'
+    : 'bg-white border-slate-200 text-slate-900';
 
-      {/* Top Header Row */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10 pb-5 border-b border-slate-100">
-        <div className="flex items-start sm:items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-blue-500/20 shrink-0">
-            <Database className="w-6 h-6" />
+  const mutedText = isDark ? 'text-slate-400' : 'text-slate-500';
+  const subSurface = isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200';
+
+  return (
+    <div className={`rounded-2xl border transition-colors ${surfaceBg}`}>
+      {/* Compact Single-Row Summary Bar */}
+      <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isDark ? 'bg-blue-500/15 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+            <Database className="w-4 h-4" />
           </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-extrabold text-slate-900 tracking-tight truncate max-w-md" title={profile.fileName}>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-bold text-sm truncate max-w-[240px]" title={profile.fileName}>
                 {profile.fileName}
-              </h2>
-              <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
-                {profile.domainType} domain
               </span>
-              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+              <span className={mutedText} aria-hidden="true">·</span>
+              <span className="capitalize font-medium text-blue-500">{profile.domainType}</span>
+              <span className={mutedText} aria-hidden="true">·</span>
+              <span className={`font-mono tabular-nums ${mutedText}`}>
+                {profile.totalRows.toLocaleString()} rows × {profile.totalColumns} cols
+              </span>
+              <span className={`hidden sm:inline ${mutedText}`} aria-hidden="true">·</span>
+              <span className={`hidden sm:inline font-mono tabular-nums ${mutedText}`}>
                 {profile.fileSizeFormatted}
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5 flex-wrap">
-              <span>Automated Data Quality Audit</span>
-              <span>•</span>
-              <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> Ready for Live Inferences
-              </span>
-              <span>•</span>
-              <span className="text-slate-400 font-mono text-[11px]">
-                {profile.columns.length} features indexed
-              </span>
-            </p>
           </div>
         </div>
 
-        {/* Quality Score Ring & Direct Actions */}
-        <div className="flex items-center gap-3 self-start md:self-auto flex-wrap">
-          {/* Circular Score Indicator */}
-          <div className={`flex items-center gap-2.5 px-3.5 py-2 rounded-2xl border ${quality.bg} ${quality.border}`}>
-            <div className="relative w-8 h-8 flex items-center justify-center">
-              <svg className="w-8 h-8 transform -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-slate-200"
-                  strokeWidth="3.5"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className={quality.ring}
-                  strokeDasharray="100, 100"
-                  strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round"
-                  strokeWidth="3.5"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <Shield className={`w-3.5 h-3.5 absolute ${quality.text}`} />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Quality Score</div>
-              <div className={`text-sm font-extrabold ${quality.text}`}>
-                {profile.qualityScore}<span className="text-[10px] text-slate-400 font-normal">/100</span>
-              </div>
-            </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 text-xs font-mono tabular-nums">
+            <Shield className={`w-3.5 h-3.5 ${getQualityColor(profile.qualityScore)}`} />
+            <span className={mutedText}>Quality</span>
+            <span className={`font-bold ${getQualityColor(profile.qualityScore)}`}>
+              {profile.qualityScore}/100
+            </span>
           </div>
 
           {onOpenCleaningModal && (profile.totalMissingValues > 0 || profile.duplicateRows > 0) && (
             <button
               onClick={onOpenCleaningModal}
-              className="px-3.5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-xs hover:shadow-indigo-500/20 transition flex items-center gap-1.5"
+              className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap"
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>Review Cleaning</span>
+              <span>Clean ({profile.totalMissingValues + profile.duplicateRows})</span>
             </button>
           )}
 
-          {onNavigateTab && (
-            <button
-              onClick={() => onNavigateTab('ml')}
-              className="px-3.5 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5"
-            >
-              <Brain className="w-3.5 h-3.5 text-indigo-400" />
-              <span>AutoML Models</span>
-            </button>
-          )}
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+              isDark
+                ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700 text-slate-200'
+                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+            }`}
+          >
+            <span>Schema &amp; Columns</span>
+            {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
         </div>
       </div>
 
-      {/* Dataset Metrics Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-        <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200/60 hover:bg-white hover:border-slate-300 transition shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Rows</span>
-          <span className="text-xl font-extrabold text-slate-900 mt-1 block">
-            {profile.totalRows.toLocaleString()}
-          </span>
-        </div>
-
-        <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200/60 hover:bg-white hover:border-slate-300 transition shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Columns</span>
-          <span className="text-xl font-extrabold text-slate-900 mt-1 block">
-            {profile.totalColumns}
-          </span>
-        </div>
-
-        <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200/60 hover:bg-white hover:border-slate-300 transition shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Missing Cells</span>
-          <span className={`text-xl font-extrabold mt-1 block ${profile.totalMissingValues > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-            {profile.totalMissingValues}
-          </span>
-        </div>
-
-        <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200/60 hover:bg-white hover:border-slate-300 transition shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Duplicate Rows</span>
-          <span className={`text-xl font-extrabold mt-1 block ${profile.duplicateRows > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-            {profile.duplicateRows}
-          </span>
-        </div>
-
-        <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200/60 hover:bg-white hover:border-slate-300 transition shadow-2xs">
-          <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider block">Numerical</span>
-          <span className="text-xl font-extrabold text-blue-600 mt-1 block">
-            {profile.columnTypeCounts.numerical}
-          </span>
-        </div>
-
-        <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200/60 hover:bg-white hover:border-slate-300 transition shadow-2xs">
-          <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider block">Categorical</span>
-          <span className="text-xl font-extrabold text-indigo-600 mt-1 block">
-            {profile.columnTypeCounts.categorical}
-          </span>
-        </div>
-
-        <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200/60 hover:bg-white hover:border-slate-300 transition shadow-2xs">
-          <span className="text-[10px] font-bold text-purple-500 uppercase tracking-wider block">Date Dimensions</span>
-          <span className="text-xl font-extrabold text-purple-600 mt-1 block">
-            {profile.columnTypeCounts.date}
-          </span>
-        </div>
-      </div>
-
-      {/* Schema Distribution Progress Strip */}
-      <div className="space-y-1.5">
-        <div className="flex justify-between text-[11px] text-slate-500 font-bold">
-          <span>Schema Type Ratio</span>
-          <span>{numPct}% Numeric • {catPct}% Categorical • {datePct}% Temporal</span>
-        </div>
-        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden flex">
-          <div style={{ width: `${numPct}%` }} className="bg-blue-500 h-full" title={`Numerical: ${numPct}%`} />
-          <div style={{ width: `${catPct}%` }} className="bg-indigo-500 h-full" title={`Categorical: ${catPct}%`} />
-          <div style={{ width: `${datePct}%` }} className="bg-purple-500 h-full" title={`Temporal: ${datePct}%`} />
-        </div>
-      </div>
-
-      {/* Schema Columns Badges with Search & Filter */}
-      <div className="space-y-3 pt-1">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <div className="text-xs font-bold text-slate-700 flex items-center gap-2">
-            <span>Detected Column Schema:</span>
-            <span className="text-slate-400 font-normal">({filteredColumns.length} of {profile.columns.length} shown)</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Type selector */}
-            <select
-              value={selectedTypeFilter}
-              onChange={(e) => setSelectedTypeFilter(e.target.value)}
-              className="text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-slate-700 focus:outline-none focus:border-blue-500"
-            >
-              <option value="all">All Types</option>
-              <option value="numerical">Numerical Only</option>
-              <option value="categorical">Categorical Only</option>
-              <option value="date">Date Dimensions</option>
-            </select>
-
-            {/* Quick search */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Filter attributes..."
-                value={colFilter}
-                onChange={(e) => setColFilter(e.target.value)}
-                className="text-xs bg-slate-50 border border-slate-200 rounded-xl pl-7 pr-3 py-1 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 w-36 sm:w-48"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1 bg-slate-50/50 rounded-2xl border border-slate-100">
-          {filteredColumns.map((col) => (
-            <div
-              key={col.name}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-blue-300 transition text-xs font-semibold text-slate-800 shadow-2xs"
-            >
-              {col.dataType === 'numerical' ? (
-                <Hash className="w-3.5 h-3.5 text-blue-600" />
-              ) : col.dataType === 'date' ? (
-                <Calendar className="w-3.5 h-3.5 text-purple-600" />
-              ) : col.dataType === 'identifier' ? (
-                <Key className="w-3.5 h-3.5 text-slate-400" />
-              ) : (
-                <Type className="w-3.5 h-3.5 text-indigo-600" />
-              )}
-              <span>{col.name}</span>
-              <span className="text-[10px] text-slate-500 font-normal bg-slate-50 px-1.5 py-0.2 rounded-md border border-slate-200">
-                {col.inferredType}
-              </span>
-              {col.nullCount > 0 && (
-                <span className="text-[10px] text-amber-700 bg-amber-100/80 px-1.5 py-0.2 rounded-md font-bold" title={`${col.nullCount} nulls`}>
-                  {col.nullCount} nulls
+      {/* Expandable Schema Inspector */}
+      {expanded && (
+        <div className={`px-4 pb-4 pt-3 border-t space-y-4 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+          {/* Metrics Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+            {[
+              { label: 'Total Rows', value: profile.totalRows.toLocaleString(), tone: '' },
+              { label: 'Columns', value: profile.totalColumns, tone: '' },
+              { label: 'Missing Cells', value: profile.totalMissingValues, tone: profile.totalMissingValues > 0 ? 'text-amber-500' : 'text-emerald-500' },
+              { label: 'Duplicates', value: profile.duplicateRows, tone: profile.duplicateRows > 0 ? 'text-amber-500' : 'text-emerald-500' },
+              { label: 'Numerical', value: profile.columnTypeCounts.numerical, tone: 'text-blue-500' },
+              { label: 'Categorical', value: profile.columnTypeCounts.categorical, tone: 'text-indigo-400' },
+              { label: 'Temporal', value: profile.columnTypeCounts.date, tone: 'text-purple-400' },
+            ].map((m) => (
+              <div key={m.label} className={`p-3 rounded-xl border ${subSurface}`}>
+                <span className={`text-[11px] font-medium block ${mutedText}`}>{m.label}</span>
+                <span className={`text-lg font-bold font-mono tabular-nums mt-0.5 block ${m.tone}`}>
+                  {m.value}
                 </span>
-              )}
+              </div>
+            ))}
+          </div>
+
+          {/* Schema Distribution Ratio */}
+          <div className="space-y-1.5">
+            <div className={`flex justify-between text-xs font-medium ${mutedText}`}>
+              <span>Schema Composition</span>
+              <span className="font-mono tabular-nums">
+                {numPct}% Numeric · {catPct}% Categorical · {datePct}% Temporal
+              </span>
             </div>
-          ))}
+            <div className={`w-full h-1.5 rounded-full overflow-hidden flex ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+              <div style={{ width: `${numPct}%` }} className="bg-blue-500 h-full" />
+              <div style={{ width: `${catPct}%` }} className="bg-indigo-500 h-full" />
+              <div style={{ width: `${datePct}%` }} className="bg-purple-500 h-full" />
+            </div>
+          </div>
+
+          {/* Columns Search & List */}
+          <div className="space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="text-xs font-semibold">
+                Detected Attributes{' '}
+                <span className={`font-normal ${mutedText}`}>
+                  ({filteredColumns.length} of {profile.columns.length})
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedTypeFilter}
+                  onChange={(e) => setSelectedTypeFilter(e.target.value)}
+                  className={`text-xs font-medium rounded-lg border px-2.5 py-1 focus:outline-none ${subSurface}`}
+                >
+                  <option value="all">All Types</option>
+                  <option value="numerical">Numerical</option>
+                  <option value="categorical">Categorical</option>
+                  <option value="date">Date</option>
+                </select>
+
+                <div className="relative">
+                  <Search className={`w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 ${mutedText}`} />
+                  <input
+                    type="text"
+                    placeholder="Filter columns..."
+                    value={colFilter}
+                    onChange={(e) => setColFilter(e.target.value)}
+                    className={`text-xs rounded-lg border pl-7 pr-3 py-1 w-40 sm:w-48 focus:outline-none ${subSurface}`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1`}>
+              {filteredColumns.map((col) => (
+                <div
+                  key={col.name}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs ${subSurface}`}
+                >
+                  <span className="flex items-center gap-2 min-w-0 font-medium">
+                    {col.dataType === 'numerical' ? (
+                      <Hash className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                    ) : col.dataType === 'date' ? (
+                      <Calendar className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                    ) : col.dataType === 'identifier' ? (
+                      <Key className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    ) : (
+                      <Type className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                    )}
+                    <span className="truncate">{col.name}</span>
+                  </span>
+                  <span className={`text-[11px] font-mono tabular-nums shrink-0 ml-2 ${mutedText}`}>
+                    {col.inferredType}
+                    {col.nullCount > 0 ? ` · ${col.nullCount} nulls` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

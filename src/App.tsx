@@ -6,7 +6,7 @@ import { DatasetOverviewCard } from './components/DatasetOverviewCard';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
 import { AICopilotDrawer } from './components/AICopilotDrawer';
 import { SecurityComplianceModal } from './components/SecurityComplianceModal';
-import { LiveStreamBar } from './components/LiveStreamBar';
+import { WorkspaceSidebar } from './components/WorkspaceSidebar';
 import { DashboardView } from './components/DashboardView';
 import { DataQualityView } from './components/DataQualityView';
 import { EDAView } from './components/EDAView';
@@ -43,30 +43,8 @@ import { DatasetState, CleaningPipelineConfig } from './types/dataset';
 import { useTheme } from './context/ThemeContext';
 import {
   X,
-  Upload,
   Sparkles,
   Loader2,
-  Cpu,
-  Activity,
-  Zap,
-  CheckCircle2,
-  Terminal,
-  ShieldCheck,
-  Brain,
-  Layers,
-  Sliders,
-  GitFork,
-  Bot,
-  Scale,
-  Radio,
-  Workflow,
-  Globe,
-  Target,
-  Trophy,
-  Lock,
-  Flame,
-  Share2,
-  SlidersHorizontal,
 } from 'lucide-react';
 
 export function App() {
@@ -82,6 +60,10 @@ export function App() {
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState<boolean>(false);
   const [isCleaning, setIsCleaning] = useState<boolean>(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState<boolean>(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [streamEventsCount, setStreamEventsCount] = useState<number>(0);
 
   // Auto-load the Sales Analytics sample on initial mount
   useEffect(() => {
@@ -295,22 +277,36 @@ export function App() {
     }
   };
 
-  const handleNewStreamRow = (newRow: Record<string, any>) => {
-    if (!dataset) return;
-    const updatedRows = [newRow, ...dataset.cleanedRows];
-    setDataset((prev) =>
-      prev
-        ? {
-            ...prev,
-            cleanedRows: updatedRows,
-            profile: {
-              ...prev.profile,
-              totalRows: prev.profile.totalRows + 1,
-            },
+  // Background stream simulation controlled cleanly from WorkspaceSidebar
+  useEffect(() => {
+    if (!isStreaming || !dataset) return;
+    const timer = setInterval(() => {
+      setDataset((prev) => {
+        if (!prev || prev.cleanedRows.length === 0) return prev;
+        const baseIndex = Math.floor(Math.random() * prev.cleanedRows.length);
+        const newRow: Record<string, any> = { ...prev.cleanedRows[baseIndex] };
+        prev.profile.columns.forEach((col) => {
+          if (col.dataType === 'numerical' && typeof newRow[col.name] === 'number') {
+            const factor = 1 + (Math.random() * 0.2 - 0.1);
+            const val = Number(newRow[col.name]) * factor;
+            newRow[col.name] = Number.isInteger(newRow[col.name]) ? Math.round(val) : Number(val.toFixed(2));
+          } else if (col.dataType === 'date') {
+            newRow[col.name] = new Date().toISOString().split('T')[0];
           }
-        : null
-    );
-  };
+        });
+        return {
+          ...prev,
+          cleanedRows: [newRow, ...prev.cleanedRows],
+          profile: {
+            ...prev.profile,
+            totalRows: prev.profile.totalRows + 1,
+          },
+        };
+      });
+      setStreamEventsCount((c) => c + 1);
+    }, 2400);
+    return () => clearInterval(timer);
+  }, [isStreaming, Boolean(dataset)]);
 
   return (
     <div
@@ -327,7 +323,7 @@ export function App() {
         }`}
       />
 
-      {/* Top Application Navbar */}
+      {/* Top Application Navbar (3-zone contract) */}
       <Navbar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
@@ -339,185 +335,51 @@ export function App() {
         onDownloadPDF={() => setCurrentTab('report')}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenCopilot={() => setIsCopilotOpen(true)}
-        onOpenSecurity={() => setIsSecurityModalOpen(true)}
+        onToggleSidebar={() => setSidebarCollapsed((c) => !c)}
+        onToggleMobileMenu={() => setMobileMenuOpen((o) => !o)}
         isProcessing={isProcessing}
       />
 
-      {/* Live Stream Ingestion Bar */}
-      {dataset && (
-        <LiveStreamBar dataset={dataset} onNewStreamRow={handleNewStreamRow} />
-      )}
-
-      {/* Real-Time Telemetry & Status Bar */}
-      {dataset && (
-        <div className="bg-slate-900 border-b border-slate-800 text-slate-300 text-[11px] py-1.5 px-4 sm:px-8">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 overflow-x-auto scrollbar-none font-mono">
-            <div className="flex items-center gap-4 shrink-0">
-              <span className="text-emerald-400 font-semibold">
-                {dataset.profile.totalRows.toLocaleString()} rows · {dataset.profile.totalColumns} cols
-              </span>
-              <span className="text-slate-600 hidden sm:inline">|</span>
-              <span className="text-slate-400 hidden sm:inline">
-                Quality: <strong className="text-slate-200">{dataset.profile.qualityScore}%</strong>
-              </span>
-              <span className="text-slate-600 hidden md:inline">|</span>
-              <span className="text-slate-400 hidden md:inline">
-                Footprint: <strong className="text-slate-200">{((dataset.profile.fileSizeBytes * 2.2) / 1024 / 1024).toFixed(2)} MB</strong>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              <button
-                onClick={() => setIsSecurityModalOpen(true)}
-                className="hover:text-emerald-400 transition flex items-center gap-1 font-semibold text-emerald-400/90 whitespace-nowrap"
-              >
-                <ShieldCheck className="w-3 h-3 text-emerald-400" /> Sentinel (SOC 2)
-              </button>
-              <span className="text-slate-600">·</span>
-              <button
-                onClick={() => setIsCopilotOpen(true)}
-                className="hover:text-indigo-400 transition flex items-center gap-1 font-semibold text-indigo-300 whitespace-nowrap"
-              >
-                <Sparkles className="w-3 h-3 text-indigo-400" /> Copilot (⌘J)
-              </button>
-              <span className="text-slate-600">·</span>
-              <button
-                onClick={() => setCurrentTab('graph')}
-                className="hover:text-blue-400 transition flex items-center gap-1 font-semibold text-blue-300 whitespace-nowrap"
-              >
-                <Share2 className="w-3 h-3 text-blue-400" /> Knowledge Graph
-              </button>
-              <span className="text-slate-600">·</span>
-              <button
-                onClick={() => setCurrentTab('optimizer')}
-                className="hover:text-emerald-400 transition flex items-center gap-1 font-semibold text-emerald-300 whitespace-nowrap"
-              >
-                <SlidersHorizontal className="w-3 h-3 text-emerald-400" /> Pareto Optimizer
-              </button>
-              <span className="text-slate-600">·</span>
-              <button
-                onClick={() => setCurrentTab('warroom')}
-                className="hover:text-rose-400 transition flex items-center gap-1 font-semibold text-rose-300 whitespace-nowrap"
-              >
-                <Radio className="w-3 h-3 text-rose-400" /> War Room HUD
-              </button>
-              <span className="text-slate-600">·</span>
-              <button
-                onClick={() => setCurrentTab('risk')}
-                className="hover:text-red-400 transition flex items-center gap-1 font-semibold text-red-300 whitespace-nowrap"
-              >
-                <Flame className="w-3 h-3 text-red-400" /> Stress &amp; Risk
-              </button>
-              <span className="text-slate-600">·</span>
-              <button
-                onClick={() => setCurrentTab('streaming')}
-                className="hover:text-cyan-400 transition flex items-center gap-1 font-semibold text-cyan-300 whitespace-nowrap"
-              >
-                <Activity className="w-3 h-3 text-cyan-400" /> Live Stream
-              </button>
-              <span className="text-slate-600">·</span>
-              <button
-                onClick={() => setCurrentTab('arena')}
-                className="hover:text-amber-400 transition flex items-center gap-1 font-semibold text-amber-300 whitespace-nowrap"
-              >
-                <Trophy className="w-3 h-3 text-amber-400" /> Model Arena
-              </button>
-              <span className="text-slate-600">•</span>
-              <button
-                onClick={() => setCurrentTab('twin')}
-                className="hover:text-emerald-400 transition flex items-center gap-1 font-bold text-emerald-300"
-              >
-                <Lock className="w-3 h-3 text-emerald-400" /> Synthetic Twin
-              </button>
-              <span className="text-slate-600">•</span>
-              <button
-                onClick={() => setCurrentTab('xai')}
-                className="hover:text-teal-400 transition flex items-center gap-1 font-bold text-teal-300"
-              >
-                <Target className="w-3 h-3 text-teal-400" /> XAI & SHAP
-              </button>
-              <span className="text-slate-600">•</span>
-              <button
-                onClick={() => setCurrentTab('geospatial')}
-                className="hover:text-cyan-400 transition flex items-center gap-1 font-bold text-cyan-300"
-              >
-                <Globe className="w-3 h-3 text-cyan-400" /> GeoSpatial
-              </button>
-              <span className="text-slate-600">•</span>
-              <button
-                onClick={() => setCurrentTab('workflows')}
-                className="hover:text-purple-400 transition flex items-center gap-1 font-bold text-purple-300"
-              >
-                <Workflow className="w-3 h-3 text-purple-400" /> Decision Logic
-              </button>
-              <span className="text-slate-600">•</span>
-              <button
-                onClick={() => setCurrentTab('swarm')}
-                className="hover:text-indigo-400 transition flex items-center gap-1 font-bold text-indigo-300"
-              >
-                <Bot className="w-3 h-3 text-indigo-400" /> AI Swarm
-              </button>
-              <span className="text-slate-600">•</span>
-              <button
-                onClick={() => setCurrentTab('causal')}
-                className="hover:text-rose-400 transition flex items-center gap-1 font-bold text-rose-300"
-              >
-                <Scale className="w-3 h-3 text-rose-400" /> Causal AI
-              </button>
-              <span className="text-slate-600">•</span>
-              <button
-                onClick={() => setCurrentTab('simulation')}
-                className="hover:text-purple-400 transition flex items-center gap-1 font-bold text-purple-300"
-              >
-                <Sliders className="w-3 h-3 text-purple-400" /> What-If Lab
-              </button>
-              <span className="text-slate-600">•</span>
-              <button
-                onClick={() => setCurrentTab('pipeline')}
-                className="hover:text-blue-400 transition flex items-center gap-1 font-bold text-blue-300"
-              >
-                <GitFork className="w-3 h-3 text-blue-400" /> Pipeline DAG
-              </button>
-              <span className="text-slate-600">•</span>
-              <button
-                onClick={() => setCurrentTab('ml')}
-                className="hover:text-indigo-400 transition flex items-center gap-1 font-bold"
-              >
-                <Brain className="w-3 h-3 text-indigo-400" /> AutoML
-              </button>
-              <span className="text-slate-600">•</span>
-              <button
-                onClick={() => setIsCommandPaletteOpen(true)}
-                className="hover:text-amber-400 transition flex items-center gap-1 font-bold"
-              >
-                <Sparkles className="w-3 h-3 text-amber-400" /> ⌘K
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {!dataset ? (
-          <UploadDropzone
-            onFileSelect={handleFileUpload}
-            onSelectSample={handleLoadSample}
-            isProcessing={isProcessing}
-            processingStep={processingStep}
-            error={error}
+      {/* Workspace Body: Left Categorized Sidebar + Main Studio Canvas */}
+      <div className="flex-1 flex min-w-0">
+        {dataset && (
+          <WorkspaceSidebar
+            currentTab={currentTab}
+            onSelectTab={(tab) => setCurrentTab(tab)}
+            dataset={dataset}
+            isStreaming={isStreaming}
+            onToggleStream={() => setIsStreaming((s) => !s)}
+            streamEventsCount={streamEventsCount}
+            onOpenSecurity={() => setIsSecurityModalOpen(true)}
+            mobileOpen={mobileMenuOpen}
+            onCloseMobile={() => setMobileMenuOpen(false)}
+            collapsed={sidebarCollapsed}
           />
-        ) : (
-          <>
-            {/* Top Level Dataset Profile & Quality Card */}
-            <DatasetOverviewCard
-              profile={dataset.profile}
-              onOpenCleaningModal={() => setCurrentTab('quality')}
-              onNavigateTab={(tab) => setCurrentTab(tab)}
-            />
+        )}
 
-            {/* Active Tab View with Motion Animation */}
-            <div className="pt-2">
+        {/* Main Content Area */}
+        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+          {!dataset ? (
+            <div className="max-w-5xl mx-auto">
+              <UploadDropzone
+                onFileSelect={handleFileUpload}
+                onSelectSample={handleLoadSample}
+                isProcessing={isProcessing}
+                processingStep={processingStep}
+                error={error}
+              />
+            </div>
+          ) : (
+            <div className="max-w-[1400px] mx-auto space-y-5">
+              {/* Collapsible Dataset Summary Strip */}
+              <DatasetOverviewCard
+                profile={dataset.profile}
+                onOpenCleaningModal={() => setCurrentTab('quality')}
+                onNavigateTab={(tab) => setCurrentTab(tab)}
+              />
+
+              {/* Active Tab View with Motion Animation */}
+              <div>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentTab}
@@ -638,10 +500,11 @@ export function App() {
                   )}
                 </motion.div>
               </AnimatePresence>
+              </div>
             </div>
-          </>
-        )}
-      </main>
+          )}
+        </main>
+      </div>
 
       {/* Command Palette Modal */}
       <CommandPaletteModal
@@ -726,15 +589,15 @@ export function App() {
 
       {/* Footer */}
       <footer
-        className={`border-t py-4 mt-12 text-center text-xs transition-colors ${
+        className={`border-t py-3 text-xs transition-colors ${
           isDark
-            ? 'border-slate-800/80 bg-slate-950/80 text-slate-500'
-            : 'border-slate-200 bg-white text-slate-400'
+            ? 'border-slate-800/80 bg-slate-950 text-slate-500'
+            : 'border-slate-200 bg-white text-slate-500'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>DataLens AI • Autonomous Enterprise Analytics & Data Science Platform</span>
-          <span>Powered by Gemini 3.7 Flash & Express High-Performance Engine</span>
+        <div className="px-4 lg:px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>DataLens AI · Enterprise Analytics &amp; Decision Engineering</span>
+          <span>⌘K Command Palette · ⌘J AI Copilot · ⌘D Theme</span>
         </div>
       </footer>
     </div>

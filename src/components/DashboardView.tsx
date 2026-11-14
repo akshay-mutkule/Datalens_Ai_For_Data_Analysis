@@ -9,15 +9,9 @@ import {
   Sparkles,
   Filter,
   RefreshCw,
-  Eye,
   ArrowUpRight,
-  Lightbulb,
-  AlertCircle,
   BarChart3,
-  Calendar,
-  Layers,
   Activity,
-  Zap,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -39,6 +33,8 @@ import {
   Legend,
 } from 'recharts';
 import { DatasetState, FilterState } from '../types/dataset';
+import { useTheme } from '../context/ThemeContext';
+import { generateKPIs, generateSmartCharts } from '../services/dataEngine';
 
 interface DashboardViewProps {
   dataset: DatasetState;
@@ -49,6 +45,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   dataset,
   onNavigateToTab,
 }) => {
+  const { isDark } = useTheme();
   const [selectedFilters, setSelectedFilters] = useState<FilterState>({});
 
   // 1. Identify low-to-medium cardinality columns for Smart Filters
@@ -73,6 +70,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return result;
   }, [dataset.cleanedRows, selectedFilters]);
 
+  const hasActiveFilters = Object.keys(selectedFilters).length > 0;
+
+  // 3. Recompute KPIs & Charts dynamically when sliced (or streamed)
+  const activeKpis = useMemo(() => {
+    if (!hasActiveFilters) return dataset.kpis;
+    return generateKPIs(filteredRows, dataset.profile);
+  }, [hasActiveFilters, filteredRows, dataset.profile, dataset.kpis]);
+
+  const activeCharts = useMemo(() => {
+    if (!hasActiveFilters) return dataset.charts;
+    return generateSmartCharts(filteredRows, dataset.profile);
+  }, [hasActiveFilters, filteredRows, dataset.profile, dataset.charts]);
+
   const handleFilterChange = (colName: string, value: string) => {
     setSelectedFilters((prev) => {
       if (!value || value === 'ALL') {
@@ -88,45 +98,57 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     setSelectedFilters({});
   };
 
-  const hasActiveFilters = Object.keys(selectedFilters).length > 0;
-
-  // Modern vibrant palette for charts
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
   const getKPIIcon = (category: string) => {
     const cat = category.toLowerCase();
     if (cat.includes('sales') || cat.includes('revenue') || cat.includes('monetary') || cat.includes('finance')) {
-      return <DollarSign className="w-4 h-4 text-emerald-600" />;
+      return <DollarSign className="w-4 h-4 text-emerald-500" />;
     }
     if (cat.includes('user') || cat.includes('customer') || cat.includes('population') || cat.includes('employee')) {
-      return <Users className="w-4 h-4 text-blue-600" />;
+      return <Users className="w-4 h-4 text-blue-500" />;
     }
     if (cat.includes('rate') || cat.includes('percent') || cat.includes('ratio') || cat.includes('churn')) {
-      return <Percent className="w-4 h-4 text-purple-600" />;
+      return <Percent className="w-4 h-4 text-purple-400" />;
     }
     if (cat.includes('volume') || cat.includes('count') || cat.includes('order') || cat.includes('quantity')) {
-      return <ShoppingCart className="w-4 h-4 text-amber-600" />;
+      return <ShoppingCart className="w-4 h-4 text-amber-500" />;
     }
-    return <Activity className="w-4 h-4 text-indigo-600" />;
+    return <Activity className="w-4 h-4 text-indigo-400" />;
   };
+
+  const cardBg = isDark
+    ? 'bg-slate-900/90 border-slate-800 text-slate-100'
+    : 'bg-white border-slate-200 text-slate-900';
+
+  const mutedText = isDark ? 'text-slate-400' : 'text-slate-500';
+  const subSurface = isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200';
+  const gridStroke = isDark ? '#1e293b' : '#f1f5f9';
+  const axisStroke = isDark ? '#475569' : '#cbd5e1';
+  const tickFill = isDark ? '#94a3b8' : '#64748b';
 
   return (
     <div className="space-y-6">
-      {/* Smart Filters Bar */}
+      {/* Smart Dimension Slicers */}
       {filterableColumns.length > 0 && (
-        <div className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-xs transition-all">
+        <div className={`rounded-2xl border p-5 transition-colors ${cardBg}`}>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
-            <div className="flex items-center gap-2 text-xs font-extrabold text-slate-900 uppercase tracking-wider">
-              <Filter className="w-4 h-4 text-blue-600" />
-              <span>Smart Dynamic Dimension Slicers</span>
+            <div className="flex items-center gap-2 text-xs font-semibold">
+              <Filter className="w-3.5 h-3.5 text-blue-500" />
+              <span>Dimension Cross-Filters</span>
+              {hasActiveFilters && (
+                <span className={`font-mono tabular-nums ${mutedText}`}>
+                  · {filteredRows.length.toLocaleString()} of {dataset.cleanedRows.length.toLocaleString()} rows
+                </span>
+              )}
             </div>
             {hasActiveFilters && (
               <button
                 onClick={clearAllFilters}
-                className="text-xs text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 transition"
+                className="text-xs text-blue-500 hover:text-blue-400 font-semibold flex items-center gap-1.5 transition-colors"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Reset All Filters</span>
+                <span>Reset Filters</span>
               </button>
             )}
           </div>
@@ -137,14 +159,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               const options = col.topCategories || [];
 
               return (
-                <div key={col.name} className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate block">
+                <div key={col.name} className="space-y-1">
+                  <label className={`text-xs font-medium truncate block capitalize ${mutedText}`}>
                     {col.name.replace(/_/g, ' ')}
                   </label>
                   <select
                     value={currentVal}
                     onChange={(e) => handleFilterChange(col.name, e.target.value)}
-                    className="w-full text-xs font-semibold bg-slate-50/80 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition"
+                    className={`w-full text-xs font-medium rounded-xl border px-3 py-2 focus:ring-2 focus:ring-blue-500/30 focus:outline-none transition ${subSurface} ${
+                      isDark ? 'text-slate-100' : 'text-slate-900'
+                    }`}
                   >
                     <option value="ALL">All ({col.totalCount})</option>
                     {options.map((opt) => (
@@ -157,64 +181,53 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               );
             })}
           </div>
-
-          {hasActiveFilters && (
-            <div className="mt-3.5 pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
-              <div>
-                Active slice: <span className="font-extrabold text-slate-900">{filteredRows.length.toLocaleString()}</span> of{' '}
-                {dataset.cleanedRows.length.toLocaleString()} rows match selection criteria.
-              </div>
-            </div>
-          )}
         </div>
       )}
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {dataset.kpis.map((kpi, index) => {
+        {activeKpis.map((kpi, index) => {
           const isPositive = (kpi.changePercent || 0) >= 0;
           return (
             <div
               key={kpi.id || index}
-              className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-300 flex flex-col justify-between relative overflow-hidden group"
+              className={`rounded-2xl border p-4 transition-colors flex flex-col justify-between ${cardBg}`}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+              <div className="flex items-center justify-between gap-2">
+                <span className={`text-xs font-medium ${mutedText}`}>
                   {kpi.category}
                 </span>
-                <div className="p-1.5 rounded-xl bg-slate-50 group-hover:scale-110 transition-transform">
-                  {getKPIIcon(kpi.category)}
-                </div>
+                {getKPIIcon(kpi.category)}
               </div>
 
-              <div className="my-3">
-                <span className="text-xs font-bold text-slate-600 line-clamp-1 block mb-1" title={kpi.label}>
+              <div className="my-2.5">
+                <span className={`text-xs font-medium line-clamp-1 block mb-1 ${mutedText}`} title={kpi.label}>
                   {kpi.label}
                 </span>
-                <div className="text-2xl font-black text-slate-900 tracking-tight">
+                <div className="text-2xl font-bold font-mono tabular-nums tracking-tight">
                   {kpi.value}
                 </div>
               </div>
 
               {kpi.changePercent !== undefined ? (
-                <div className="flex items-center gap-1.5 text-[11px] font-bold">
-                  <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md ${isPositive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                <div className="flex items-center gap-1.5 text-xs font-mono tabular-nums">
+                  <span className={`flex items-center gap-1 font-semibold ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
                     {isPositive ? (
-                      <TrendingUp className="w-3 h-3 text-emerald-600" />
+                      <TrendingUp className="w-3.5 h-3.5" />
                     ) : (
-                      <TrendingDown className="w-3 h-3 text-rose-600" />
+                      <TrendingDown className="w-3.5 h-3.5" />
                     )}
-                    <span>
-                      {isPositive ? '+' : ''}
-                      {kpi.changePercent}%
-                    </span>
-                  </div>
-                  <span className="text-slate-400 font-normal truncate text-[10px]">
-                    {kpi.changeLabel || 'vs baseline'}
+                    {isPositive ? '+' : ''}
+                    {kpi.changePercent}%
+                  </span>
+                  <span className={`text-[11px] font-sans truncate ${mutedText}`}>
+                    · {kpi.changeLabel || 'vs baseline'}
                   </span>
                 </div>
               ) : (
-                <div className="text-[10px] text-slate-400 font-medium">Auto-derived metric</div>
+                <div className={`text-[11px] ${mutedText}`}>
+                  {hasActiveFilters ? 'Filtered slice' : 'Derived metric'}
+                </div>
               )}
             </div>
           );
@@ -222,264 +235,239 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {dataset.charts.map((chart) => (
-          <div
-            key={chart.id}
-            className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs hover:shadow-md transition-all duration-300 space-y-4"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-extrabold text-sm text-slate-900 tracking-tight">{chart.title}</h3>
-                <p className="text-xs text-slate-500 mt-0.5">{chart.description}</p>
+      {activeCharts.length === 0 ? (
+        <div className={`rounded-2xl border p-10 text-center ${cardBg}`}>
+          <p className="text-sm font-semibold">No records match the active filter combination</p>
+          <p className={`text-xs mt-1 ${mutedText}`}>Reset dimension filters above to restore dashboard visualizations.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {activeCharts.map((chart) => (
+            <div
+              key={chart.id}
+              className={`rounded-2xl border p-5 transition-colors space-y-4 ${cardBg}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm tracking-tight">{chart.title}</h3>
+                  <p className={`text-xs mt-0.5 ${mutedText}`}>{chart.description}</p>
+                </div>
+                <span className={`text-xs font-mono capitalize shrink-0 ${mutedText}`}>
+                  {chart.chartType}
+                </span>
               </div>
-              <span className="text-[10px] uppercase font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
-                {chart.chartType}
-              </span>
-            </div>
 
-            {/* Chart Canvas */}
-            <div className="h-64 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                {chart.chartType === 'area' ? (
-                  <AreaChart data={chart.data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id={`grad_${chart.id}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={chart.colors?.[0] || '#3b82f6'} stopOpacity={0.45} />
-                        <stop offset="95%" stopColor={chart.colors?.[0] || '#3b82f6'} stopOpacity={0.0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey={chart.xAxisKey} tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" />
-                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff', fontSize: '11px' }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey={chart.yAxisKeys[0]}
-                      stroke={chart.colors?.[0] || '#3b82f6'}
-                      strokeWidth={2.5}
-                      fillOpacity={1}
-                      fill={`url(#grad_${chart.id})`}
-                    />
-                  </AreaChart>
-                ) : chart.chartType === 'bar' ? (
-                  <BarChart data={chart.data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey={chart.xAxisKey} tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" />
-                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff', fontSize: '11px' }}
-                    />
-                    <Bar
-                      dataKey={chart.yAxisKeys[0]}
-                      fill={chart.colors?.[0] || '#3b82f6'}
-                      radius={[6, 6, 0, 0]}
-                    />
-                  </BarChart>
-                ) : chart.chartType === 'donut' ? (
-                  <PieChart>
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff', fontSize: '11px' }}
-                    />
-                    <Legend wrapperStyle={{ fontSize: '11px', color: '#475569' }} />
-                    <Pie
-                      data={chart.data}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={85}
-                      paddingAngle={4}
-                    >
-                      {chart.data.map((_, idx) => (
-                        <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                ) : chart.chartType === 'scatter' ? (
-                  <ScatterChart margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis type="number" dataKey="x" name={chart.xAxisKey} tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" />
-                    <YAxis type="number" dataKey="y" name={chart.yAxisKeys[0]} tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" />
-                    <Tooltip
-                      cursor={{ strokeDasharray: '3 3' }}
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff', fontSize: '11px' }}
-                    />
-                    <Scatter name="Data Points" data={chart.data} fill={chart.colors?.[0] || '#8b5cf6'} />
-                  </ScatterChart>
-                ) : (
-                  <LineChart data={chart.data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey={chart.xAxisKey} tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" />
-                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff', fontSize: '11px' }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey={chart.yAxisKeys[0]}
-                      stroke={chart.colors?.[0] || '#3b82f6'}
-                      strokeWidth={2.5}
-                      dot={{ r: 3.5, fill: chart.colors?.[0] || '#3b82f6' }}
-                    />
-                  </LineChart>
-                )}
-              </ResponsiveContainer>
-            </div>
-
-            {chart.recommendationReason && (
-              <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-[11px] text-slate-500">
-                <Sparkles className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                <span className="truncate">{chart.recommendationReason}</span>
+              <div className="h-64 w-full pt-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  {chart.chartType === 'area' ? (
+                    <AreaChart data={chart.data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id={`grad_${chart.id}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={chart.colors?.[0] || '#3b82f6'} stopOpacity={0.4} />
+                          <stop offset="95%" stopColor={chart.colors?.[0] || '#3b82f6'} stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                      <XAxis dataKey={chart.xAxisKey} tick={{ fontSize: 11, fill: tickFill }} stroke={axisStroke} />
+                      <YAxis tick={{ fontSize: 11, fill: tickFill }} stroke={axisStroke} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', color: '#fff', fontSize: '11px' }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey={chart.yAxisKeys[0]}
+                        stroke={chart.colors?.[0] || '#3b82f6'}
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill={`url(#grad_${chart.id})`}
+                      />
+                    </AreaChart>
+                  ) : chart.chartType === 'bar' ? (
+                    <BarChart data={chart.data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                      <XAxis dataKey={chart.xAxisKey} tick={{ fontSize: 11, fill: tickFill }} stroke={axisStroke} />
+                      <YAxis tick={{ fontSize: 11, fill: tickFill }} stroke={axisStroke} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', color: '#fff', fontSize: '11px' }}
+                      />
+                      <Bar
+                        dataKey={chart.yAxisKeys[0]}
+                        fill={chart.colors?.[0] || '#3b82f6'}
+                        radius={[6, 6, 0, 0]}
+                      />
+                    </BarChart>
+                  ) : chart.chartType === 'donut' ? (
+                    <PieChart>
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', color: '#fff', fontSize: '11px' }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '11px', color: tickFill }} />
+                      <Pie
+                        data={chart.data}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={3}
+                      >
+                        {chart.data.map((_, idx) => (
+                          <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  ) : chart.chartType === 'scatter' ? (
+                    <ScatterChart margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                      <XAxis type="number" dataKey="x" name={chart.xAxisKey} tick={{ fontSize: 11, fill: tickFill }} stroke={axisStroke} />
+                      <YAxis type="number" dataKey="y" name={chart.yAxisKeys[0]} tick={{ fontSize: 11, fill: tickFill }} stroke={axisStroke} />
+                      <Tooltip
+                        cursor={{ strokeDasharray: '3 3' }}
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', color: '#fff', fontSize: '11px' }}
+                      />
+                      <Scatter name="Data Points" data={chart.data} fill={chart.colors?.[0] || '#8b5cf6'} />
+                    </ScatterChart>
+                  ) : (
+                    <LineChart data={chart.data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                      <XAxis dataKey={chart.xAxisKey} tick={{ fontSize: 11, fill: tickFill }} stroke={axisStroke} />
+                      <YAxis tick={{ fontSize: 11, fill: tickFill }} stroke={axisStroke} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', color: '#fff', fontSize: '11px' }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey={chart.yAxisKeys[0]}
+                        stroke={chart.colors?.[0] || '#3b82f6'}
+                        strokeWidth={2}
+                        dot={{ r: 3, fill: chart.colors?.[0] || '#3b82f6' }}
+                      />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
               </div>
-            )}
-          </div>
-        ))}
-      </div>
 
-      {/* Automated Business Insights & Leaderboard Row */}
+              {chart.recommendationReason && (
+                <div className={`pt-3 border-t text-xs truncate ${isDark ? 'border-slate-800' : 'border-slate-100'} ${mutedText}`}>
+                  {chart.recommendationReason}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Automated Business Insights & Correlation Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* AI Insight Highlights */}
-        <div className="lg:col-span-2 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white rounded-3xl p-6 shadow-md space-y-4 relative overflow-hidden border border-slate-800">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-indigo-300" />
-              </div>
-              <div>
-                <h3 className="font-extrabold text-sm text-white">Empirical Business Intelligence Synthesis</h3>
-                <p className="text-xs text-indigo-200/70">Calculated directly from multi-column statistical distributions</p>
-              </div>
+        <div className={`lg:col-span-2 rounded-2xl border p-6 space-y-4 ${cardBg}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-base">Empirical Business Intelligence Synthesis</h3>
+              <p className={`text-xs ${mutedText}`}>
+                Derived directly from multi-column statistical distributions
+              </p>
             </div>
             <button
               onClick={() => onNavigateToTab('chat')}
-              className="text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-sm transition"
+              className="text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-colors whitespace-nowrap"
             >
+              <Sparkles className="w-3.5 h-3.5" />
               <span>Ask AI Analyst</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
             {dataset.insights.slice(0, 4).map((ins) => (
               <div
                 key={ins.id}
-                className="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-4 space-y-1.5 hover:bg-slate-800/80 transition shadow-2xs backdrop-blur-xs"
+                className={`rounded-xl border p-4 space-y-1.5 ${subSurface}`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-300">
-                    {ins.category}
-                  </span>
-                  <span
-                    className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
-                      ins.importance === 'high'
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                        : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                    }`}
-                  >
-                    {ins.importance}
+                <div className={`flex items-center gap-2 text-xs font-medium ${mutedText}`}>
+                  <span className="capitalize text-blue-500 font-semibold">{ins.category}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className={`capitalize ${ins.importance === 'high' ? 'text-amber-500 font-semibold' : ''}`}>
+                    {ins.importance} priority
                   </span>
                 </div>
-                <h4 className="text-xs font-bold text-slate-100">{ins.title}</h4>
-                <p className="text-[11px] text-slate-300 leading-relaxed">{ins.text}</p>
+                <h4 className="text-sm font-semibold">{ins.title}</h4>
+                <p className={`text-xs leading-relaxed ${mutedText}`}>{ins.text}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Quick Correlation Matrix Summary */}
-        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs flex flex-col justify-between">
+        {/* Correlation Matrix Summary & Direct Studio Launchers */}
+        <div className={`rounded-2xl border p-6 flex flex-col justify-between ${cardBg}`}>
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-blue-600" />
+              <h3 className="font-bold text-sm flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-blue-500" />
                 Top Variable Correlations
               </h3>
               <button
-                onClick={() => onNavigateToTab('eda')}
-                className="text-xs text-blue-600 hover:text-blue-700 font-bold"
+                onClick={() => onNavigateToTab('graph')}
+                className="text-xs text-blue-500 hover:underline font-semibold"
               >
-                View Heatmap →
+                Open Graph →
               </button>
             </div>
 
             {dataset.correlations.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {dataset.correlations.slice(0, 5).map((corr, idx) => (
                   <div
                     key={idx}
-                    className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200/70 text-xs flex items-center justify-between"
+                    className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-2 ${subSurface}`}
                   >
-                    <div>
-                      <span className="font-bold text-slate-900">{corr.col1}</span>
-                      <span className="text-slate-400 mx-1.5 font-normal">↔</span>
-                      <span className="font-bold text-slate-900">{corr.col2}</span>
+                    <div className="truncate font-medium">
+                      <span>{corr.col1}</span>
+                      <span className={`mx-1.5 ${mutedText}`}>↔</span>
+                      <span>{corr.col2}</span>
                     </div>
-                    <div
-                      className={`font-mono font-bold px-2 py-0.5 rounded-lg text-[11px] ${
+                    <span
+                      className={`font-mono tabular-nums font-bold shrink-0 ${
                         corr.correlation > 0.6
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          ? 'text-emerald-500'
                           : corr.correlation < -0.6
-                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                          : 'bg-slate-100 text-slate-700 border border-slate-200'
+                          ? 'text-rose-500'
+                          : mutedText
                       }`}
                     >
                       r = {corr.correlation}
-                    </div>
+                    </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="py-8 text-center text-xs text-slate-400">
+              <div className={`py-8 text-center text-xs ${mutedText}`}>
                 Single or insufficient numerical columns for bivariate correlation.
               </div>
             )}
           </div>
 
-          <div className="pt-4 border-t border-slate-100 mt-4 flex flex-col items-start gap-2 text-xs">
-            <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-              Explore advanced analytical engines:
+          <div className={`pt-4 border-t mt-4 space-y-2.5 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+            <span className={`text-xs font-semibold block ${mutedText}`}>
+              Specialized Analytical Studios
             </span>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                onClick={() => onNavigateToTab('ml')}
-                className="font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-xl border border-indigo-200 transition shadow-2xs"
-              >
-                AutoML & What-If →
-              </button>
-              <button
-                onClick={() => onNavigateToTab('clustering')}
-                className="font-bold text-blue-700 hover:text-blue-800 bg-blue-50 px-2.5 py-1 rounded-xl border border-blue-200 transition shadow-2xs"
-              >
-                Clusters & PCA →
-              </button>
-              <button
-                onClick={() => onNavigateToTab('anomalies')}
-                className="font-bold text-rose-700 hover:text-rose-800 bg-rose-50 px-2.5 py-1 rounded-xl border border-rose-200 transition shadow-2xs"
-              >
-                Anomaly Sentinel →
-              </button>
-              <button
-                onClick={() => onNavigateToTab('cohorts')}
-                className="font-bold text-cyan-700 hover:text-cyan-800 bg-cyan-50 px-2.5 py-1 rounded-xl border border-cyan-200 transition shadow-2xs"
-              >
-                Cohorts →
-              </button>
-              <button
-                onClick={() => onNavigateToTab('sql')}
-                className="font-bold text-slate-700 hover:text-slate-800 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200 transition shadow-2xs"
-              >
-                SQL Console →
-              </button>
-              <button
-                onClick={() => onNavigateToTab('notebook')}
-                className="font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 transition shadow-2xs"
-              >
-                Python & R Code →
-              </button>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {[
+                { id: 'optimizer', label: 'Pareto Optimizer' },
+                { id: 'graph', label: 'Knowledge Graph' },
+                { id: 'risk', label: 'Stress & Risk' },
+                { id: 'arena', label: 'Model Arena' },
+                { id: 'causal', label: 'Causal AI' },
+                { id: 'sql', label: 'SQL Studio' },
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => onNavigateToTab(s.id)}
+                  className={`text-left px-3 py-2 rounded-lg border font-medium transition-colors truncate ${subSurface} hover:border-blue-500/50`}
+                >
+                  {s.label} →
+                </button>
+              ))}
             </div>
           </div>
         </div>
